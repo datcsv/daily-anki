@@ -6,7 +6,7 @@ from .gateways import NotesGateway, DictionarySource, AnkiGateway, SyncResult
 from .models import Card
 from .notes import fetch_words as fetch_words_impl, clear_note as clear_note_impl
 from .jmdict import Dictionary as JMDictDictionary
-from .anki import AnkiConnectClient, sync_cards as sync_cards_impl, check_configuration, ensure_configuration
+from .anki import AnkiConnectClient, check_configuration, ensure_configuration, sync_configured_cards
 from pathlib import Path
 
 
@@ -49,5 +49,5 @@ class AnkiConnectGateway(AnkiGateway):
     def sync_cards(
         self, cards: list[Card], deck: str, note_type: str, dry_run: bool = False
     ) -> SyncResult:
-        result = sync_cards_impl(self._client, cards, deck, note_type, dry_run)
+        result = sync_configured_cards(self._client, cards, deck, note_type, dry_run)
         return SyncResult(created=result.created, skipped=result.skipped)

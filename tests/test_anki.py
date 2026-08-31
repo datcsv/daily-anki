@@ -9,10 +9,13 @@ from daily_anki.anki import (
     DEFAULT_DECK,
     DEFAULT_NOTE_TYPE,
     FIELD_NAMES,
+    SyncResult,
     _escape_query_value,
     fields_for_card,
     sync_cards,
 )
+from daily_anki.adapters import AnkiConnectGateway
+from daily_anki.anki_sync_service import AnkiSyncConfig, AnkiSyncService
 from daily_anki.models import Card, Example
 
 
@@ -29,17 +32,22 @@ def test_fields_for_card_matches_deck_contract():
 class FakeAnki:
     def __init__(self):
         self.added = []
+        self.configuration_calls = 0
 
     def deck_names(self):
+        self.configuration_calls += 1
         return [DEFAULT_DECK]
 
     def version(self):
+        self.configuration_calls += 1
         return 6
 
     def model_names(self):
+        self.configuration_calls += 1
         return [DEFAULT_NOTE_TYPE]
 
     def model_field_names(self, model_name):
+        self.configuration_calls += 1
         return list(FIELD_NAMES)
 
     def create_deck(self, deck):
@@ -72,6 +80,41 @@ def test_sync_dry_run_does_not_add_cards():
     result = sync_cards(client, [Card("犬")], DEFAULT_DECK, DEFAULT_NOTE_TYPE, dry_run=True)
     assert result.created == ("犬",)
     assert client.added == []
+
+
+def test_gateway_sync_does_not_repeat_configuration_check():
+    client = FakeAnki()
+    gateway = AnkiConnectGateway(client)
+
+    result = gateway.sync_cards([Card("犬")], DEFAULT_DECK, DEFAULT_NOTE_TYPE)
+
+    assert result.created == ("犬",)
+    assert client.configuration_calls == 0
+    assert client.added[0][2]["Target Japanese Word"] == "犬"
+
+
+def test_sync_service_configures_once_before_syncing():
+    class FakeGateway:
+        def __init__(self):
+            self.ensure_calls = 0
+            self.sync_calls = 0
+
+        def ensure_configuration(self, deck, note_type):
+            self.ensure_calls += 1
+            return 6
+
+        def check_configuration(self, deck, note_type):
+            raise AssertionError("actual sync should ensure configuration")
+
+        def sync_cards(self, cards, deck, note_type, dry_run=False):
+            self.sync_calls += 1
+            return SyncResult(tuple(card.word for card in cards), ())
+
+    gateway = FakeGateway()
+    result = AnkiSyncService(gateway).sync([Card("犬")], AnkiSyncConfig(DEFAULT_DECK, DEFAULT_NOTE_TYPE))
+
+    assert result.created == ("犬",)
+    assert gateway.ensure_calls == gateway.sync_calls == 1
 
 
 def test_sync_treats_null_add_result_as_skipped():
