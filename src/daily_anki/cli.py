@@ -18,6 +18,7 @@ from .history import append_sync_event
 from .jmdict import Dictionary, download_latest
 from .notes import clear_note, fetch_words
 from .models import Card
+from .services import export_cards_from_words
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -113,8 +114,8 @@ def _run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
             else:
                 print(f"Would clear note body: {args.note_name}")
     else:
-        write_tsv(cards, args.output)
-        print(f"Wrote {len(cards)} cards to {args.output}")
+        card_count, missing = export_cards_from_words(words, args.dictionary, args.output)
+        print(f"Wrote {card_count} cards to {args.output}")
     if missing:
         print(f"No match ({len(missing)}): {', '.join(missing)}")
     return 0
