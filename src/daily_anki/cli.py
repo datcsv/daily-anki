@@ -1,4 +1,5 @@
 import argparse
+import subprocess
 from pathlib import Path
 from typing import List, Tuple
 
@@ -7,6 +8,7 @@ from .anki import (
     DEFAULT_DECK,
     DEFAULT_ENDPOINT,
     DEFAULT_NOTE_TYPE,
+    AnkiConnectError,
     ensure_configuration,
     sync_cards,
 )
@@ -67,6 +69,13 @@ def _lookup_cards(words: list[str], dictionary: Dictionary) -> Tuple[List[Card],
 def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
+    try:
+        return _run(args, parser)
+    except (AnkiConnectError, OSError, RuntimeError, ValueError, subprocess.CalledProcessError) as error:
+        parser.exit(1, f"error: {error}\n")
+
+
+def _run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
     if args.command == "download-dictionary":
         print(f"Downloaded {download_latest(args.output)} to {args.output}")
         return 0
