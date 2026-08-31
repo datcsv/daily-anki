@@ -49,7 +49,11 @@ def build_parser() -> argparse.ArgumentParser:
     sync.add_argument("--endpoint", default=DEFAULT_ENDPOINT)
     sync.add_argument("--dry-run", action="store_true", help="show what would be added without changing Anki")
     sync.add_argument("--history", type=Path, default=Path("data/sync-history.jsonl"))
-    sync.add_argument("--clear-note", action="store_true", help="remove words created in Anki or already in the deck from the selected Apple Note")
+    sync.add_argument(
+        "--clear-note",
+        action="store_true",
+        help="remove synced complete vocabulary-list entries from the selected Apple Note",
+    )
     return parser
 
 
