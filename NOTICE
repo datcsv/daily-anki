@@ -1,0 +1,10 @@
+daily-anki
+Copyright 2026 daily-anki contributors
+
+This product includes software developed by the daily-anki contributors.
+
+This project is licensed under the Apache License, Version 2.0. See the LICENSE file for terms.
+
+Third-party data notice:
+- JMDict Simplified and related dictionary data are sourced from upstream dictionary projects and are governed by their own licensing terms. This repository does not relicense those data files under Apache 2.0.
+- Please consult the upstream JMDict Simplified and EDRG documentation before redistributing downloaded dictionary datasets or derived data files.
