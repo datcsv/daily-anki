@@ -19,6 +19,11 @@ class NotesGateway(ABC):
         """Clear the body of a note."""
         pass
 
+    @abstractmethod
+    def remove_words(self, folder: str, note_name: str, words: list[str]) -> None:
+        """Remove selected words from a note."""
+        pass
+
 
 class DictionarySource(ABC):
     """Abstract interface for dictionary lookup operations."""
@@ -57,3 +62,5 @@ from dataclasses import dataclass
 class SyncResult:
     created: tuple[str, ...] = ()
     skipped: tuple[str, ...] = ()
+    existing: tuple[str, ...] = ()
+    failed: tuple[str, ...] = ()

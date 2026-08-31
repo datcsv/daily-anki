@@ -156,7 +156,14 @@ class Dictionary:
                     examples.append(Example(japanese, english))
         preferred_reading = _preferred_reading(entry)
         readings = (_to_hiragana(preferred_reading),) if preferred_reading else ()
-        return Card(word=canonical_word or word, readings=readings, meanings=tuple(meanings), examples=tuple(examples), source_id=str(entry.get("id", "")) or None)
+        return Card(
+            word=canonical_word or word,
+            readings=readings,
+            meanings=tuple(meanings),
+            examples=tuple(examples),
+            source_id=str(entry.get("id", "")) or None,
+            metadata={"lookup_word": word},
+        )
 
     @staticmethod
     def _forms(entry: dict[str, Any]) -> set[str]:

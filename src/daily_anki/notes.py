@@ -35,6 +35,34 @@ CLEAR_NOTE_SCRIPT = r'''on run argv
     end tell
 end run'''
 
+REMOVE_WORDS_SCRIPT = r'''on replaceText(theText, searchString, replacementString)
+    set AppleScript's text item delimiters to searchString
+    set textItems to text items of theText
+    set AppleScript's text item delimiters to replacementString
+    set replacedText to textItems as text
+    set AppleScript's text item delimiters to ""
+    return replacedText
+end replaceText
+
+on run argv
+    set requestedFolder to item 1 of argv
+    set requestedNote to item 2 of argv
+    set wordsToRemove to items 3 thru -1 of argv
+    tell application "Notes"
+        repeat with currentNote in notes of default account
+            if name of currentNote is requestedNote and (requestedFolder is "" or name of container of currentNote is requestedFolder) then
+                set updatedBody to body of currentNote
+                repeat with wordToRemove in wordsToRemove
+                    set updatedBody to my replaceText(updatedBody, contents of wordToRemove, "")
+                end repeat
+                set body of currentNote to updatedBody
+                return "updated"
+            end if
+        end repeat
+        error "Note not found: " & requestedNote
+    end tell
+end run'''
+
 JAPANESE_RUN = re.compile(r"[\u3040-\u309f\u30a0-\u30ff\u3400-\u4dbf\u4e00-\u9fff々ー]+")
 LIST_MARKER = re.compile(r"^\s*(?:[-*•]|\[[ xX]\])\s*")
 
@@ -52,6 +80,17 @@ def fetch_words(folder: str = "", note_name: str = "") -> list[str]:
 def clear_note(folder: str, note_name: str) -> None:
     subprocess.run(
         ["osascript", "-e", CLEAR_NOTE_SCRIPT, folder, note_name],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+
+def remove_words(folder: str, note_name: str, words: list[str]) -> None:
+    if not words:
+        return
+    subprocess.run(
+        ["osascript", "-e", REMOVE_WORDS_SCRIPT, folder, note_name, *words],
         check=True,
         capture_output=True,
         text=True,

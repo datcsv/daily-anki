@@ -123,6 +123,26 @@ def test_sync_treats_null_add_result_as_skipped():
     result = sync_cards(client, [Card("犬")], DEFAULT_DECK, DEFAULT_NOTE_TYPE)
     assert result.created == ()
     assert result.skipped == ("犬",)
+    assert result.existing == ()
+    assert result.failed == ("犬",)
+
+
+def test_sync_reports_already_existing_words_separately_from_failed_additions():
+    client = FakeAnki()
+    result = sync_cards(client, [Card("猫")], DEFAULT_DECK, DEFAULT_NOTE_TYPE)
+
+    assert result.created == ()
+    assert result.existing == ("猫",)
+    assert result.failed == ()
+
+
+def test_sync_reports_the_original_lookup_word_for_note_cleanup():
+    client = FakeAnki()
+    card = Card("人気字", metadata={"lookup_word": "旧字"})
+
+    result = sync_cards(client, [card], DEFAULT_DECK, DEFAULT_NOTE_TYPE)
+
+    assert result.created == ("旧字",)
 
 
 def test_sync_matches_existing_katakana_spelling():

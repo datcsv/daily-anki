@@ -71,6 +71,8 @@ Create the cards:
 daily-anki sync --note-name "Daily Life" --dictionary data/jmdict-eng.json
 ```
 
+Add `--clear-note` to remove only words that were added to Anki or were already present in the selected deck. Words with no dictionary match and words Anki could not add remain in the Apple Note.
+
 ## Notes
 
 - The project is aimed at people who want to study vocabulary in context and turn it into flashcards.

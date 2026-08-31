@@ -119,6 +119,8 @@ class AnkiConnectClient:
 class SyncResult:
     created: tuple[str, ...] = ()
     skipped: tuple[str, ...] = ()
+    existing: tuple[str, ...] = ()
+    failed: tuple[str, ...] = ()
 
 
 def ensure_configuration(client: AnkiConnectClient, deck: str, note_type: str, create_missing: bool = True) -> int:
@@ -184,22 +186,27 @@ def sync_configured_cards(
     }
     created = []
     skipped = []
+    existing = []
+    failed = []
     for card in cards:
         duplicate_key = _normalize_duplicate_key(card.word)
+        source_word = card.metadata.get("lookup_word", card.word)
         if duplicate_key in existing_words:
-            skipped.append(card.word)
+            skipped.append(source_word)
+            existing.append(source_word)
             continue
         if dry_run:
-            created.append(card.word)
+            created.append(source_word)
             existing_words.add(duplicate_key)
             continue
         note_id = client.add_note(deck, note_type, fields_for_card(card))
         if note_id is None:
-            skipped.append(card.word)
+            skipped.append(source_word)
+            failed.append(source_word)
         else:
-            created.append(card.word)
+            created.append(source_word)
             existing_words.add(duplicate_key)
-    return SyncResult(tuple(created), tuple(skipped))
+    return SyncResult(tuple(created), tuple(skipped), tuple(existing), tuple(failed))
 
 
 def _escape_query_value(value: str) -> str:

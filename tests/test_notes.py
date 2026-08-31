@@ -24,6 +24,25 @@ def test_clear_note_targets_named_note(monkeypatch):
     assert calls[0][1]["check"] is True
 
 
+def test_remove_words_targets_named_note_with_only_completed_words(monkeypatch):
+    calls = []
+
+    def fake_run(command, **kwargs):
+        calls.append((command, kwargs))
+
+    monkeypatch.setattr(notes.subprocess, "run", fake_run)
+    notes.remove_words("Japanese", "Daily Life", ["猫", "犬"])
+
+    assert calls[0][0][-4:] == ["Japanese", "Daily Life", "猫", "犬"]
+    assert calls[0][1]["check"] is True
+
+
+def test_remove_words_does_not_call_apple_notes_without_words(monkeypatch):
+    monkeypatch.setattr(notes.subprocess, "run", lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError()))
+
+    notes.remove_words("Japanese", "Daily Life", [])
+
+
 def test_clear_script_preserves_note_title_heading():
     assert 'set noteTitle to name of currentNote' in notes.CLEAR_NOTE_SCRIPT
     assert 'set body of currentNote to "<div><h1>" & noteTitle & "</h1></div>"' in notes.CLEAR_NOTE_SCRIPT

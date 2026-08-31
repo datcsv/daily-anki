@@ -11,5 +11,7 @@ def test_append_sync_event_writes_jsonl(tmp_path):
     assert event["deck"] == "Daily Life"
     assert event["created"] == ["猫"]
     assert event["skipped"] == ["犬"]
+    assert event["existing"] == []
+    assert event["failed"] == []
     assert event["missing"] == ["鳥"]
     assert event["dry_run"] is False

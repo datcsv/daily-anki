@@ -4,7 +4,7 @@ from typing import Optional
 
 from .gateways import NotesGateway, DictionarySource, AnkiGateway, SyncResult
 from .models import Card
-from .notes import fetch_words as fetch_words_impl, clear_note as clear_note_impl
+from .notes import fetch_words as fetch_words_impl, clear_note as clear_note_impl, remove_words as remove_words_impl
 from .jmdict import Dictionary as JMDictDictionary
 from .anki import AnkiConnectClient, check_configuration, ensure_configuration, sync_configured_cards
 from pathlib import Path
@@ -18,6 +18,9 @@ class AppleNotesGateway(NotesGateway):
 
     def clear_note(self, folder: str, note_name: str) -> None:
         clear_note_impl(folder, note_name)
+
+    def remove_words(self, folder: str, note_name: str, words: list[str]) -> None:
+        remove_words_impl(folder, note_name, words)
 
 
 class JMDictDictionarySource(DictionarySource):
@@ -50,4 +53,9 @@ class AnkiConnectGateway(AnkiGateway):
         self, cards: list[Card], deck: str, note_type: str, dry_run: bool = False
     ) -> SyncResult:
         result = sync_configured_cards(self._client, cards, deck, note_type, dry_run)
-        return SyncResult(created=result.created, skipped=result.skipped)
+        return SyncResult(
+            created=result.created,
+            skipped=result.skipped,
+            existing=result.existing,
+            failed=result.failed,
+        )

@@ -49,7 +49,7 @@ def build_parser() -> argparse.ArgumentParser:
     sync.add_argument("--endpoint", default=DEFAULT_ENDPOINT)
     sync.add_argument("--dry-run", action="store_true", help="show what would be added without changing Anki")
     sync.add_argument("--history", type=Path, default=Path("data/sync-history.jsonl"))
-    sync.add_argument("--clear-note", action="store_true", help="clear the selected Apple Note after a complete sync")
+    sync.add_argument("--clear-note", action="store_true", help="remove words created in Anki or already in the deck from the selected Apple Note")
     return parser
 
 
@@ -108,16 +108,18 @@ def _run(args: argparse.Namespace, parser: argparse.ArgumentParser, notes_gatewa
         append_sync_event(args.history, args.deck, args.note_type, result, missing, args.dry_run)
         action = "would add" if args.dry_run else "added"
         print(f"{action.capitalize()} {len(result.created)} cards to {args.deck}")
-        if result.skipped:
-            print(f"Skipped existing ({len(result.skipped)}): {', '.join(result.skipped)}")
+        if result.existing:
+            print(f"Skipped existing ({len(result.existing)}): {', '.join(result.existing)}")
+        if result.failed:
+            print(f"Not added ({len(result.failed)}): {', '.join(result.failed)}")
         if args.clear_note:
-            if missing:
-                print("Note was not cleared because some words had no dictionary match")
-            elif not args.dry_run:
-                notes_gateway.clear_note(args.notes_folder, args.note_name)
-                print(f"Cleared note body: {args.note_name}")
+            removable_words = [*result.created, *result.existing]
+            if not args.dry_run and removable_words:
+                notes_gateway.remove_words(args.notes_folder, args.note_name, removable_words)
+                print(f"Removed {len(removable_words)} synced words from note: {args.note_name}")
             else:
-                print(f"Would clear note body: {args.note_name}")
+                action = "Would remove" if args.dry_run else "No words removed from"
+                print(f"{action} note: {args.note_name}")
     else:
         card_count, missing = export_cards_from_words(words, args.dictionary, args.output, dictionary_source)
         print(f"Wrote {card_count} cards to {args.output}")
