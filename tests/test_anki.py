@@ -127,6 +127,24 @@ def test_sync_treats_null_add_result_as_skipped():
     assert result.failed == ("犬",)
 
 
+def test_sync_continues_after_an_individual_card_addition_failure():
+    client = FakeAnki()
+    original_add_note = client.add_note
+
+    def add_note(deck, note_type, fields):
+        if fields["Target Japanese Word"] == "犬":
+            raise AnkiConnectError("AnkiConnect addNote failed: invalid card")
+        return original_add_note(deck, note_type, fields)
+
+    client.add_note = add_note
+
+    result = sync_cards(client, [Card("犬"), Card("鳥")], DEFAULT_DECK, DEFAULT_NOTE_TYPE)
+
+    assert result.created == ("鳥",)
+    assert result.skipped == result.failed == ("犬",)
+    assert client.added[0][2]["Target Japanese Word"] == "鳥"
+
+
 def test_sync_reports_already_existing_words_separately_from_failed_additions():
     client = FakeAnki()
     result = sync_cards(client, [Card("猫")], DEFAULT_DECK, DEFAULT_NOTE_TYPE)
@@ -203,7 +221,7 @@ class Response:
 def test_client_invokes_anki_connect():
     requests = []
 
-    def opener(request):
+    def opener(request, *, timeout):
         requests.append(json.loads(request.data.decode("utf-8")))
         return Response({"result": [DEFAULT_DECK], "error": None})
 
@@ -212,8 +230,24 @@ def test_client_invokes_anki_connect():
     assert requests[0]["version"] == 6
 
 
+def test_client_uses_configured_timeout():
+    timeouts = []
+
+    def opener(request, *, timeout):
+        timeouts.append(timeout)
+        return Response({"result": [DEFAULT_DECK], "error": None})
+
+    assert AnkiConnectClient(timeout=2.5, opener=opener).deck_names() == [DEFAULT_DECK]
+    assert timeouts == [2.5]
+
+
+def test_client_rejects_invalid_timeout():
+    with pytest.raises(ValueError, match="positive finite"):
+        AnkiConnectClient(timeout=0)
+
+
 def test_client_rejects_malformed_response():
-    def opener(request):
+    def opener(request, *, timeout):
         return Response(["not", "an", "anki", "response"])
 
     with pytest.raises(AnkiConnectError, match="invalid response"):
@@ -221,7 +255,7 @@ def test_client_rejects_malformed_response():
 
 
 def test_client_rejects_invalid_typed_result():
-    def opener(request):
+    def opener(request, *, timeout):
         return Response({"result": {"not": "a list"}, "error": None})
 
     with pytest.raises(AnkiConnectError, match="invalid deck names"):

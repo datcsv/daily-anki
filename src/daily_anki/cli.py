@@ -7,6 +7,7 @@ from .anki import (
     DEFAULT_DECK,
     DEFAULT_ENDPOINT,
     DEFAULT_NOTE_TYPE,
+    DEFAULT_TIMEOUT,
     AnkiConnectError,
 )
 from .jmdict import download_latest
@@ -30,11 +31,11 @@ def build_parser() -> argparse.ArgumentParser:
     check = commands.add_parser("anki-check", help="check AnkiConnect, deck, and note type")
     check.add_argument("--deck", default=DEFAULT_DECK)
     check.add_argument("--note-type", default=DEFAULT_NOTE_TYPE)
-    check.add_argument("--endpoint", default=DEFAULT_ENDPOINT)
+    _add_anki_connection_arguments(check)
     setup = commands.add_parser("anki-setup", help="create the Anki deck and note type if missing")
     setup.add_argument("--deck", default=DEFAULT_DECK)
     setup.add_argument("--note-type", default=DEFAULT_NOTE_TYPE)
-    setup.add_argument("--endpoint", default=DEFAULT_ENDPOINT)
+    _add_anki_connection_arguments(setup)
     create = commands.add_parser("create", help="create an Anki TSV from words or Apple Notes")
     sync = commands.add_parser("sync", help="create cards directly in Anki Desktop through AnkiConnect")
     for command in (create, sync):
@@ -46,7 +47,7 @@ def build_parser() -> argparse.ArgumentParser:
     create.add_argument("--output", type=Path, default=Path("exports/daily.tsv"))
     sync.add_argument("--deck", default=DEFAULT_DECK)
     sync.add_argument("--note-type", default=DEFAULT_NOTE_TYPE)
-    sync.add_argument("--endpoint", default=DEFAULT_ENDPOINT)
+    _add_anki_connection_arguments(sync)
     sync.add_argument("--dry-run", action="store_true", help="show what would be added without changing Anki")
     sync.add_argument("--history", type=Path, default=Path("data/sync-history.jsonl"))
     sync.add_argument(
@@ -55,6 +56,27 @@ def build_parser() -> argparse.ArgumentParser:
         help="remove synced complete vocabulary-list entries from the selected Apple Note",
     )
     return parser
+
+
+def _add_anki_connection_arguments(command: argparse.ArgumentParser) -> None:
+    command.add_argument("--endpoint", default=DEFAULT_ENDPOINT)
+    command.add_argument(
+        "--timeout",
+        type=_positive_timeout,
+        default=DEFAULT_TIMEOUT,
+        metavar="SECONDS",
+        help=f"AnkiConnect request timeout in seconds (default: {DEFAULT_TIMEOUT:g})",
+    )
+
+
+def _positive_timeout(value: str) -> float:
+    try:
+        timeout = float(value)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError("must be a positive number") from error
+    if timeout <= 0 or timeout == float("inf") or timeout != timeout:
+        raise argparse.ArgumentTypeError("must be a positive finite number")
+    return timeout
 
 
 def _load_words(args: argparse.Namespace, parser: argparse.ArgumentParser, notes_gateway: NotesGateway) -> list[str]:
@@ -82,7 +104,12 @@ def main() -> int:
     args = parser.parse_args()
     try:
         notes_gateway = AppleNotesGateway()
-        anki_gateway = AnkiConnectGateway(AnkiConnectClient(args.endpoint if hasattr(args, "endpoint") else DEFAULT_ENDPOINT))
+        anki_gateway = AnkiConnectGateway(
+            AnkiConnectClient(
+                args.endpoint if hasattr(args, "endpoint") else DEFAULT_ENDPOINT,
+                timeout=getattr(args, "timeout", DEFAULT_TIMEOUT),
+            )
+        )
         anki_sync_service = AnkiSyncService(anki_gateway)
         return _run(args, parser, notes_gateway, anki_sync_service)
     except (AnkiConnectError, OSError, RuntimeError, ValueError, subprocess.CalledProcessError) as error:
