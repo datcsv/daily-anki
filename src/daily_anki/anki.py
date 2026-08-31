@@ -23,6 +23,11 @@ FIELD_NAMES = (
     "Audio",
     "Notes",
 )
+DEFAULT_CARD_TEMPLATES = ({
+    "Name": "Card 1",
+    "Front": "{{Target Word with Ruby}}",
+    "Back": "{{FrontSide}}<hr id=answer>{{Simple Definition}}<br>{{Japanese Example Sentence}}<br>{{English Translation of Sentence}}",
+},)
 
 
 class AnkiConnectError(RuntimeError):
@@ -54,6 +59,22 @@ class AnkiConnectClient:
 
     def model_names(self) -> list[str]:
         return self.invoke("modelNames")
+
+    def model_field_names(self, model_name: str) -> list[str]:
+        return self.invoke("modelFieldNames", modelName=model_name)
+
+    def create_deck(self, deck: str) -> Any:
+        return self.invoke("createDeck", deck=deck)
+
+    def create_model(self, model_name: str) -> Any:
+        return self.invoke(
+            "createModel",
+            modelName=model_name,
+            inOrder=list(FIELD_NAMES),
+            css=".card { font-family: arial; font-size: 24px; text-align: center; color: black; background-color: white; }",
+            isCloze=False,
+            cardTemplates=list(DEFAULT_CARD_TEMPLATES),
+        )
 
     def find_notes(self, query: str) -> list[int]:
         return self.invoke("findNotes", query=query)
@@ -89,6 +110,21 @@ def check_configuration(client: AnkiConnectClient, deck: str, note_type: str) ->
     return version
 
 
+def ensure_configuration(client: AnkiConnectClient, deck: str, note_type: str) -> int:
+    version = client.version()
+    if deck not in client.deck_names():
+        client.create_deck(deck)
+    model_names = client.model_names()
+    if note_type not in model_names:
+        client.create_model(note_type)
+    else:
+        actual_fields = client.model_field_names(note_type)
+        missing_fields = [field for field in FIELD_NAMES if field not in actual_fields]
+        if missing_fields:
+            raise AnkiConnectError(f"Anki note type '{note_type}' is missing fields: {', '.join(missing_fields)}")
+    return version
+
+
 def fields_for_card(card: Card) -> dict[str, str]:
     example = card.examples[0] if card.examples else None
     values = (
@@ -109,7 +145,7 @@ def fields_for_card(card: Card) -> dict[str, str]:
 
 
 def sync_cards(client: AnkiConnectClient, cards: list[Card], deck: str, note_type: str, dry_run: bool = False) -> SyncResult:
-    check_configuration(client, deck, note_type)
+    ensure_configuration(client, deck, note_type)
 
     existing_ids = client.find_notes(f'deck:"{deck}" note:"{note_type}"')
     existing_notes = client.notes_info(existing_ids) if existing_ids else []

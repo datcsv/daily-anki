@@ -39,7 +39,7 @@ Add `--notes-folder "Japanese"` to restrict the note lookup to a folder. If you 
 
 Install the AnkiConnect add-on in Anki Desktop, start Anki, and leave it running. AnkiConnect listens locally at `http://127.0.0.1:8765`; this app does not request or store your AnkiWeb password. AnkiWeb synchronization remains managed by Anki Desktop.
 
-Check the connection and required Anki configuration:
+Check the connection and configure the required Anki resources:
 
 ```sh
 daily-anki anki-check
@@ -57,7 +57,7 @@ Create new cards directly in the existing deck:
 daily-anki sync --note-name "Daily Life" --dictionary data/jmdict-eng.json
 ```
 
-The sync command uses the `Daily Life` deck and `NihongoShark.com: JLPT Cramming Deck` note type by default. Override them with `--deck` and `--note-type`. Existing cards are detected by their `Target Japanese Word` field and skipped; sync does not update or delete existing notes.
+The sync command uses the `Daily Life` deck and `NihongoShark.com: JLPT Cramming Deck` note type by default. If either is missing, `anki-check` or `sync` creates it. Override them with `--deck` and `--note-type`. Existing cards are detected by their `Target Japanese Word` field and skipped; sync does not update or delete existing notes. If a same-named note type exists but is missing required fields, the command stops rather than changing it.
 
 Each sync appends a JSONL event to `data/sync-history.jsonl`. Override that location with `--history`. The dictionary downloader verifies GitHub's SHA-256 digest when the release provides one and replaces the local file only after successful extraction.
 

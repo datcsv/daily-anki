@@ -1,7 +1,7 @@
 import argparse
 from pathlib import Path
 
-from .anki import AnkiConnectClient, DEFAULT_DECK, DEFAULT_ENDPOINT, DEFAULT_NOTE_TYPE, check_configuration, sync_cards
+from .anki import AnkiConnectClient, DEFAULT_DECK, DEFAULT_ENDPOINT, DEFAULT_NOTE_TYPE, ensure_configuration, sync_cards
 from .export import write_tsv
 from .history import append_sync_event
 from .jmdict import Dictionary, download_latest
@@ -40,7 +40,7 @@ def main() -> int:
         print(f"Downloaded {download_latest(args.output)} to {args.output}")
         return 0
     if args.command == "anki-check":
-        version = check_configuration(AnkiConnectClient(args.endpoint), args.deck, args.note_type)
+        version = ensure_configuration(AnkiConnectClient(args.endpoint), args.deck, args.note_type)
         print(f"AnkiConnect {version} is ready for deck '{args.deck}' and note type '{args.note_type}'")
         return 0
     if not args.words_file and not args.note_name and not args.notes_folder:

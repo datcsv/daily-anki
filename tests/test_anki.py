@@ -7,6 +7,7 @@ from daily_anki.anki import (
     AnkiConnectError,
     DEFAULT_DECK,
     DEFAULT_NOTE_TYPE,
+    FIELD_NAMES,
     fields_for_card,
     sync_cards,
 )
@@ -35,6 +36,15 @@ class FakeAnki:
 
     def model_names(self):
         return [DEFAULT_NOTE_TYPE]
+
+    def model_field_names(self, model_name):
+        return list(FIELD_NAMES)
+
+    def create_deck(self, deck):
+        return deck
+
+    def create_model(self, model_name):
+        return model_name
 
     def find_notes(self, query):
         return [1]
@@ -70,10 +80,23 @@ def test_sync_treats_null_add_result_as_skipped():
     assert result.skipped == ("犬",)
 
 
-def test_sync_requires_existing_deck():
+def test_sync_rejects_existing_note_type_with_missing_fields():
     client = FakeAnki()
-    with pytest.raises(AnkiConnectError, match="deck does not exist"):
-        sync_cards(client, [Card("犬")], "Missing", DEFAULT_NOTE_TYPE)
+    client.model_field_names = lambda model_name: []
+    with pytest.raises(AnkiConnectError, match="missing fields"):
+        sync_cards(client, [Card("犬")], DEFAULT_DECK, DEFAULT_NOTE_TYPE)
+
+
+def test_sync_creates_missing_deck_and_note_type():
+    client = FakeAnki()
+    client.deck_names = lambda: []
+    client.model_names = lambda: []
+    created = []
+    client.create_deck = lambda deck: created.append(("deck", deck))
+    client.create_model = lambda model_name: created.append(("model", model_name))
+    result = sync_cards(client, [Card("犬")], DEFAULT_DECK, DEFAULT_NOTE_TYPE)
+    assert result.created == ("犬",)
+    assert created == [("deck", DEFAULT_DECK), ("model", DEFAULT_NOTE_TYPE)]
 
 
 class Response:
