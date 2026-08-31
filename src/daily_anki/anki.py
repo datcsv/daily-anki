@@ -168,6 +168,13 @@ def fields_for_card(card: Card) -> dict[str, str]:
 
 def sync_cards(client: AnkiConnectClient, cards: list[Card], deck: str, note_type: str, dry_run: bool = False) -> SyncResult:
     ensure_configuration(client, deck, note_type, create_missing=not dry_run)
+    return sync_configured_cards(client, cards, deck, note_type, dry_run)
+
+
+def sync_configured_cards(
+    client: AnkiConnectClient, cards: list[Card], deck: str, note_type: str, dry_run: bool = False
+) -> SyncResult:
+    """Sync cards when the deck and note type have already been validated."""
 
     existing_ids = client.find_notes(f'deck:"{_escape_query_value(deck)}" note:"{_escape_query_value(note_type)}"')
     existing_notes = client.notes_info(existing_ids) if existing_ids else []
