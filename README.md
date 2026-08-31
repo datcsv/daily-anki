@@ -1,98 +1,84 @@
 # daily-anki
 
-A small terminal workflow for turning Japanese words in Apple Notes into Anki cards using the JMDict Simplified dataset.
+`daily-anki` helps you turn Japanese vocabulary from Apple Notes or a word list into Anki flashcards.
 
-## Setup
+It looks up each word in the JMDict dictionary, builds a ready-to-import TSV file, and can optionally send cards directly to Anki using AnkiConnect.
 
-Requires macOS, Python 3.9+, and permission for Terminal (or VS Code) to automate Notes.
+## What it does
+
+- Reads words from a text file or from notes in Apple Notes
+- Looks up dictionary entries and extracts useful meaning data
+- Exports cards in a format that can be imported into Anki
+- Can sync the cards directly to Anki if AnkiConnect is running
+
+## Requirements
+
+- macOS
+- Python 3.9+
+- Anki Desktop (optional, for syncing cards directly)
+- AnkiConnect add-on (optional, for sync)
+
+## Quick start
+
+Create a virtual environment and install the project:
 
 ```sh
 ./scripts/setup_venv.sh
 source .venv/bin/activate
 ```
 
-The script creates `.venv`, installs this project, and installs the optional test dependencies.
-
-## First run
-
-Download the latest English JMDict Simplified release with example sentences:
+Download the dictionary data:
 
 ```sh
 daily-anki download-dictionary --output data/jmdict-eng.json
 ```
 
-Read words from a text file (one word per line) and write an Anki TSV:
+Create a card export from a word list:
 
 ```sh
 daily-anki create --words-file words.txt --dictionary data/jmdict-eng.json --output exports/daily.tsv
 ```
 
-Read a specific note from Apple Notes:
+Create a card export from a specific Apple Notes note:
 
 ```sh
 daily-anki create --note-name "Daily Life" --dictionary data/jmdict-eng.json --output exports/daily.tsv
 ```
 
-Add `--notes-folder "Japanese"` to restrict the note lookup to a folder. If you provide only `--notes-folder`, all notes in that folder are read. Lines without a dictionary match are reported and skipped. In Anki, import the resulting file as tab-separated text and select the `NihongoShark.com: JLPT Cramming Deck` note type. The exporter writes all 12 fields in the deck's order: the three Japanese word fields are identical, the two furigana fields are identical and normalized to hiragana, examples use their Japanese and English fields, and English Definition (Lengthy Version), Target Romaji, Audio, and Notes remain empty.
+## Syncing directly to Anki
 
-Notes input ignores blank lines, English-only text, URLs, and symbol-only lines. Mixed lines are reduced to Japanese-script runs, so `猫 - cat` becomes `猫`.
-
-Definitions use the first matching JMDict entry for a word, include its English senses, translate compact part-of-speech codes into readable labels, continue meaning labels across senses (`Ⓐ`, `Ⓑ`, `Ⓒ`, ...), and include JMDict related entries as `(see also: ...)`.
-
-When an entry has alternate spellings, the exporter uses the first `common` spelling marked by JMDict, falling back to the first listed spelling. It uses one preferred reading and normalizes it to hiragana.
-
-## Anki sync
-
-Install the AnkiConnect add-on in Anki Desktop, start Anki, and leave it running. AnkiConnect listens locally at `http://127.0.0.1:8765`; this app does not request or store your AnkiWeb password. AnkiWeb synchronization remains managed by Anki Desktop.
-
-Check the connection and configure the required Anki resources:
+Start Anki Desktop and install the AnkiConnect add-on. Then check that the project can see it:
 
 ```sh
 daily-anki anki-check
 ```
 
-`anki-check` is read-only and fails if the deck or note type is missing. To create missing resources explicitly, run:
+If the deck or note type is missing, you can create them:
 
 ```sh
 daily-anki anki-setup
 ```
 
-Preview cards without changing Anki:
+Preview what would be created without changing Anki:
 
 ```sh
 daily-anki sync --note-name "Daily Life" --dictionary data/jmdict-eng.json --dry-run
 ```
 
-Create new cards directly in the existing deck:
+Create the cards:
 
 ```sh
 daily-anki sync --note-name "Daily Life" --dictionary data/jmdict-eng.json
 ```
 
-After reviewing a successful sync, clear the selected note body while keeping its title:
+## Notes
 
-```sh
-daily-anki sync --note-name "Daily Life" --dictionary data/jmdict-eng.json --clear-note
-```
-
-`--clear-note` is only available with a specific `--note-name`. It preserves the title as the note heading, does not clear the note when any words were missing from JMDict, and leaves the note unchanged with `--dry-run`.
-
-The sync command uses the `Daily Life` deck and `NihongoShark.com: JLPT Cramming Deck` note type by default. If either is missing, `sync` creates it. Override them with `--deck` and `--note-type`. Existing cards are detected by their `Target Japanese Word` field and skipped; sync does not update or delete existing notes. If a same-named note type exists but is missing required fields, the command stops rather than changing it.
-
-Each sync appends a JSONL event to `data/sync-history.jsonl`. Override that location with `--history`. The dictionary downloader verifies GitHub's SHA-256 digest when the release provides one and replaces the local file only after successful extraction.
-
-Run checks with:
-
-```sh
-python -m pytest
-```
+- The project is aimed at people who want to study vocabulary in context and turn it into flashcards.
+- It is written for a personal workflow, but it is flexible enough to use with a small word list or with notes you keep in Apple Notes.
+- The generated TSV can be imported into Anki using the standard import flow.
 
 ## License
 
-The project code in this repository is licensed under the Apache License, Version 2.0. See the [LICENSE](LICENSE) file for the full text.
+The project code is licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for the full text.
 
-This project also depends on external data from JMDict Simplified and the local Anki/Apple Notes ecosystem. The dictionary data is not re-licensed by this repository and remains subject to its upstream terms. Please review the JMDict Simplified project and the relevant EDRG licensing information before redistributing downloaded dictionary files or derived datasets.
-
-For attribution and downstream compliance, see the [NOTICE](NOTICE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) files.
-
-The Apple Notes integration is isolated in `notes.py`; a future AnkiConnect/API integration can be added without changing lookup or export code.
+The project also uses dictionary data from JMDict Simplified, which has its own upstream licensing terms. See [NOTICE](NOTICE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for attribution and compliance details.
