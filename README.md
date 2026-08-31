@@ -87,4 +87,8 @@ Run checks with:
 python -m pytest
 ```
 
+## License
+
+This project is licensed under the Apache License, Version 2.0. See the [LICENSE](LICENSE) file for details.
+
 The Apple Notes integration is isolated in `notes.py`; a future AnkiConnect/API integration can be added without changing lookup or export code.

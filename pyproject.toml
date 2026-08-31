@@ -7,14 +7,21 @@ name = "daily-anki"
 version = "0.1.0"
 description = "Turn Japanese words from Apple Notes into Anki-importable cards."
 readme = "README.md"
+license = { text = "Apache-2.0" }
 requires-python = ">=3.9"
 dependencies = []
+classifiers = [
+  "License :: OSI Approved :: Apache Software License",
+]
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
 
 [project.scripts]
 daily-anki = "daily_anki.cli:main"
+
+[tool.setuptools]
+license-files = ["LICENSE"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
