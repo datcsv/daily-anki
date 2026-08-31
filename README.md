@@ -71,7 +71,7 @@ Create the cards:
 daily-anki sync --note-name "Daily Life" --dictionary data/jmdict-eng.json
 ```
 
-Add `--clear-note` to remove only words that were added to Anki or were already present in the selected deck. Words with no dictionary match and words Anki could not add remain in the Apple Note.
+Add `--clear-note` to remove only complete vocabulary-list entries that were added to Anki or were already present in the selected deck. Use Apple Notes list items, marked list lines, or bare-word lines; prose and links are preserved. Words with no dictionary match and words Anki could not add remain in the Apple Note.
 
 ## Notes
 
