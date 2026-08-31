@@ -69,7 +69,7 @@ After reviewing a successful sync, clear the selected note body while keeping it
 daily-anki sync --note-name "Daily Life" --dictionary data/jmdict-eng.json --clear-note
 ```
 
-`--clear-note` is only available with a specific `--note-name`. It does not clear the note when any words were missing from JMDict; use the reported words to resolve them first. With `--dry-run`, it only reports what would be cleared.
+`--clear-note` is only available with a specific `--note-name`. It preserves the title as the note heading, does not clear the note when any words were missing from JMDict, and leaves the note unchanged with `--dry-run`.
 
 The sync command uses the `Daily Life` deck and `NihongoShark.com: JLPT Cramming Deck` note type by default. If either is missing, `anki-check` or `sync` creates it. Override them with `--deck` and `--note-type`. Existing cards are detected by their `Target Japanese Word` field and skipped; sync does not update or delete existing notes. If a same-named note type exists but is missing required fields, the command stops rather than changing it.
 

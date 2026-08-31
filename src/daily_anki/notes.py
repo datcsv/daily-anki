@@ -26,7 +26,8 @@ CLEAR_NOTE_SCRIPT = r'''on run argv
     tell application "Notes"
         repeat with currentNote in notes of default account
             if name of currentNote is requestedNote and (requestedFolder is "" or name of container of currentNote is requestedFolder) then
-                set body of currentNote to ""
+                set noteTitle to name of currentNote
+                set body of currentNote to "<div><h1>" & noteTitle & "</h1></div>"
                 return "cleared"
             end if
         end repeat

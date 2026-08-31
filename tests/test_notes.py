@@ -22,3 +22,8 @@ def test_clear_note_targets_named_note(monkeypatch):
     notes.clear_note("Japanese", "Daily Life")
     assert calls[0][0][-2:] == ["Japanese", "Daily Life"]
     assert calls[0][1]["check"] is True
+
+
+def test_clear_script_preserves_note_title_heading():
+    assert 'set noteTitle to name of currentNote' in notes.CLEAR_NOTE_SCRIPT
+    assert 'set body of currentNote to "<div><h1>" & noteTitle & "</h1></div>"' in notes.CLEAR_NOTE_SCRIPT
