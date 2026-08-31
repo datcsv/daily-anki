@@ -35,6 +35,12 @@ daily-anki create --note-name "Daily Life" --dictionary data/jmdict-eng.json --o
 
 Add `--notes-folder "Japanese"` to restrict the note lookup to a folder. If you provide only `--notes-folder`, all notes in that folder are read. Lines without a dictionary match are reported and skipped. In Anki, import the resulting file as tab-separated text and select the `NihongoShark.com: JLPT Cramming Deck` note type. The exporter writes all 12 fields in the deck's order: the three Japanese word fields are identical, the two furigana fields are identical and normalized to hiragana, examples use their Japanese and English fields, and English Definition (Lengthy Version), Target Romaji, Audio, and Notes remain empty.
 
+Notes input ignores blank lines, English-only text, URLs, and symbol-only lines. Mixed lines are reduced to Japanese-script runs, so `猫 - cat` becomes `猫`.
+
+Definitions use the first matching JMDict entry for a word, include its English senses, translate compact part-of-speech codes into readable labels, continue meaning labels across senses (`Ⓐ`, `Ⓑ`, `Ⓒ`, ...), and include JMDict related entries as `(see also: ...)`.
+
+When an entry has alternate spellings, the exporter uses the first `common` spelling marked by JMDict, falling back to the first listed spelling. It uses one preferred reading and normalizes it to hiragana.
+
 ## Anki sync
 
 Install the AnkiConnect add-on in Anki Desktop, start Anki, and leave it running. AnkiConnect listens locally at `http://127.0.0.1:8765`; this app does not request or store your AnkiWeb password. AnkiWeb synchronization remains managed by Anki Desktop.
@@ -56,6 +62,14 @@ Create new cards directly in the existing deck:
 ```sh
 daily-anki sync --note-name "Daily Life" --dictionary data/jmdict-eng.json
 ```
+
+After reviewing a successful sync, clear the selected note body while keeping its title:
+
+```sh
+daily-anki sync --note-name "Daily Life" --dictionary data/jmdict-eng.json --clear-note
+```
+
+`--clear-note` is only available with a specific `--note-name`. It does not clear the note when any words were missing from JMDict; use the reported words to resolve them first. With `--dry-run`, it only reports what would be cleared.
 
 The sync command uses the `Daily Life` deck and `NihongoShark.com: JLPT Cramming Deck` note type by default. If either is missing, `anki-check` or `sync` creates it. Override them with `--deck` and `--note-type`. Existing cards are detected by their `Target Japanese Word` field and skipped; sync does not update or delete existing notes. If a same-named note type exists but is missing required fields, the command stops rather than changing it.
 

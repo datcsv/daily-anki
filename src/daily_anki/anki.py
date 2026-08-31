@@ -45,23 +45,37 @@ class AnkiConnectClient:
         try:
             with self._opener(request) as response:
                 result = json.loads(response.read().decode("utf-8"))
-        except (OSError, URLError, json.JSONDecodeError) as error:
+        except (OSError, URLError, UnicodeDecodeError, json.JSONDecodeError) as error:
             raise AnkiConnectError(f"Could not connect to AnkiConnect at {self.endpoint}: {error}") from error
+        if not isinstance(result, dict) or "error" not in result or "result" not in result:
+            raise AnkiConnectError("AnkiConnect returned an invalid response")
         if result.get("error") is not None:
             raise AnkiConnectError(f"AnkiConnect {action} failed: {result['error']}")
         return result.get("result")
 
     def deck_names(self) -> list[str]:
-        return self.invoke("deckNames")
+        result = self.invoke("deckNames")
+        if not isinstance(result, list) or not all(isinstance(deck, str) for deck in result):
+            raise AnkiConnectError("AnkiConnect returned invalid deck names")
+        return result
 
     def version(self) -> int:
-        return self.invoke("version")
+        result = self.invoke("version")
+        if not isinstance(result, int):
+            raise AnkiConnectError("AnkiConnect returned an invalid version")
+        return result
 
     def model_names(self) -> list[str]:
-        return self.invoke("modelNames")
+        result = self.invoke("modelNames")
+        if not isinstance(result, list) or not all(isinstance(model, str) for model in result):
+            raise AnkiConnectError("AnkiConnect returned invalid note type names")
+        return result
 
     def model_field_names(self, model_name: str) -> list[str]:
-        return self.invoke("modelFieldNames", modelName=model_name)
+        result = self.invoke("modelFieldNames", modelName=model_name)
+        if not isinstance(result, list) or not all(isinstance(field, str) for field in result):
+            raise AnkiConnectError("AnkiConnect returned invalid note type fields")
+        return result
 
     def create_deck(self, deck: str) -> Any:
         return self.invoke("createDeck", deck=deck)
@@ -77,10 +91,16 @@ class AnkiConnectClient:
         )
 
     def find_notes(self, query: str) -> list[int]:
-        return self.invoke("findNotes", query=query)
+        result = self.invoke("findNotes", query=query)
+        if not isinstance(result, list) or not all(isinstance(note_id, int) for note_id in result):
+            raise AnkiConnectError("AnkiConnect returned invalid note IDs")
+        return result
 
     def notes_info(self, note_ids: list[int]) -> list[dict[str, Any]]:
-        return self.invoke("notesInfo", notes=note_ids)
+        result = self.invoke("notesInfo", notes=note_ids)
+        if not isinstance(result, list) or not all(isinstance(note, dict) for note in result):
+            raise AnkiConnectError("AnkiConnect returned invalid note information")
+        return result
 
     def add_note(self, deck: str, note_type: str, fields: dict[str, str]) -> Optional[int]:
         return self.invoke(
@@ -101,22 +121,20 @@ class SyncResult:
     skipped: tuple[str, ...] = ()
 
 
-def check_configuration(client: AnkiConnectClient, deck: str, note_type: str) -> int:
+def ensure_configuration(client: AnkiConnectClient, deck: str, note_type: str, create_missing: bool = True) -> int:
     version = client.version()
-    if deck not in client.deck_names():
-        raise AnkiConnectError(f"Anki deck does not exist: {deck}")
-    if note_type not in client.model_names():
-        raise AnkiConnectError(f"Anki note type does not exist: {note_type}")
-    return version
-
-
-def ensure_configuration(client: AnkiConnectClient, deck: str, note_type: str) -> int:
-    version = client.version()
-    if deck not in client.deck_names():
-        client.create_deck(deck)
+    decks = client.deck_names()
+    if deck not in decks:
+        if create_missing:
+            client.create_deck(deck)
+        else:
+            raise AnkiConnectError(f"Anki deck does not exist: {deck}")
     model_names = client.model_names()
     if note_type not in model_names:
-        client.create_model(note_type)
+        if create_missing:
+            client.create_model(note_type)
+        else:
+            raise AnkiConnectError(f"Anki note type does not exist: {note_type}")
     else:
         actual_fields = client.model_field_names(note_type)
         missing_fields = [field for field in FIELD_NAMES if field not in actual_fields]
@@ -145,25 +163,37 @@ def fields_for_card(card: Card) -> dict[str, str]:
 
 
 def sync_cards(client: AnkiConnectClient, cards: list[Card], deck: str, note_type: str, dry_run: bool = False) -> SyncResult:
-    ensure_configuration(client, deck, note_type)
+    ensure_configuration(client, deck, note_type, create_missing=not dry_run)
 
-    existing_ids = client.find_notes(f'deck:"{deck}" note:"{note_type}"')
+    existing_ids = client.find_notes(f'deck:"{_escape_query_value(deck)}" note:"{_escape_query_value(note_type)}"')
     existing_notes = client.notes_info(existing_ids) if existing_ids else []
-    existing_words = {note.get("fields", {}).get("Target Japanese Word", {}).get("value", "") for note in existing_notes}
+    existing_words = {
+        _normalize_duplicate_key(note.get("fields", {}).get("Target Japanese Word", {}).get("value", ""))
+        for note in existing_notes
+    }
     created = []
     skipped = []
     for card in cards:
-        if card.word in existing_words:
+        duplicate_key = _normalize_duplicate_key(card.word)
+        if duplicate_key in existing_words:
             skipped.append(card.word)
             continue
         if dry_run:
             created.append(card.word)
-            existing_words.add(card.word)
+            existing_words.add(duplicate_key)
             continue
         note_id = client.add_note(deck, note_type, fields_for_card(card))
         if note_id is None:
             skipped.append(card.word)
         else:
             created.append(card.word)
-            existing_words.add(card.word)
+            existing_words.add(duplicate_key)
     return SyncResult(tuple(created), tuple(skipped))
+
+
+def _escape_query_value(value: str) -> str:
+    return value.replace("\\", "\\\\").replace('"', '\\"')
+
+
+def _normalize_duplicate_key(word: str) -> str:
+    return "".join(chr(ord(character) - 0x60) if "ァ" <= character <= "ヶ" else character for character in word.strip())

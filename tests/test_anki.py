@@ -8,6 +8,7 @@ from daily_anki.anki import (
     DEFAULT_DECK,
     DEFAULT_NOTE_TYPE,
     FIELD_NAMES,
+    _escape_query_value,
     fields_for_card,
     sync_cards,
 )
@@ -80,6 +81,14 @@ def test_sync_treats_null_add_result_as_skipped():
     assert result.skipped == ("犬",)
 
 
+def test_sync_matches_existing_katakana_spelling():
+    client = FakeAnki()
+    client.notes_info = lambda note_ids: [{"fields": {"Target Japanese Word": {"value": "ムカつく"}}}]
+    result = sync_cards(client, [Card("むかつく")], DEFAULT_DECK, DEFAULT_NOTE_TYPE)
+    assert result.created == ()
+    assert result.skipped == ("むかつく",)
+
+
 def test_sync_rejects_existing_note_type_with_missing_fields():
     client = FakeAnki()
     client.model_field_names = lambda model_name: []
@@ -97,6 +106,13 @@ def test_sync_creates_missing_deck_and_note_type():
     result = sync_cards(client, [Card("犬")], DEFAULT_DECK, DEFAULT_NOTE_TYPE)
     assert result.created == ("犬",)
     assert created == [("deck", DEFAULT_DECK), ("model", DEFAULT_NOTE_TYPE)]
+
+
+def test_dry_run_does_not_create_missing_configuration():
+    client = FakeAnki()
+    client.deck_names = lambda: []
+    with pytest.raises(AnkiConnectError, match="deck does not exist"):
+        sync_cards(client, [Card("犬")], DEFAULT_DECK, DEFAULT_NOTE_TYPE, dry_run=True)
 
 
 class Response:
@@ -123,3 +139,23 @@ def test_client_invokes_anki_connect():
     assert AnkiConnectClient(opener=opener).deck_names() == [DEFAULT_DECK]
     assert requests[0]["action"] == "deckNames"
     assert requests[0]["version"] == 6
+
+
+def test_client_rejects_malformed_response():
+    def opener(request):
+        return Response(["not", "an", "anki", "response"])
+
+    with pytest.raises(AnkiConnectError, match="invalid response"):
+        AnkiConnectClient(opener=opener).deck_names()
+
+
+def test_client_rejects_invalid_typed_result():
+    def opener(request):
+        return Response({"result": {"not": "a list"}, "error": None})
+
+    with pytest.raises(AnkiConnectError, match="invalid deck names"):
+        AnkiConnectClient(opener=opener).deck_names()
+
+
+def test_escape_query_value_handles_quotes_and_backslashes():
+    assert _escape_query_value(r'Deck \"today\"') == r'Deck \\\"today\\\"'

@@ -12,6 +12,94 @@ from typing import Any, Optional
 from .models import Card, Example
 
 LATEST_RELEASE_API = "https://api.github.com/repos/scriptin/jmdict-simplified/releases/latest"
+POS_LABELS = {
+    "adj-f": "noun or verb acting prenominally",
+    "adj-i": "i adjective",
+    "adj-na": "na adjective (keiyodoshi)",
+    "adj-no": "noun or verb acting prenominally",
+    "adv": "adverb",
+    "adv-to": "adverb taking the 'to' particle",
+    "aux-adj": "auxiliary adjective",
+    "aux-v": "auxiliary verb",
+    "conj": "conjunction",
+    "cop": "copula",
+    "ctr": "counter",
+    "exp": "expressions (phrases, clauses, etc.)",
+    "int": "interjection (kandoushi)",
+    "n": "noun",
+    "n-adv": "adverbial noun",
+    "n-pr": "proper noun",
+    "num": "numeric",
+    "pn": "pronoun",
+    "pref": "noun, used as a prefix",
+    "prt": "particle",
+    "suf": "suffix",
+    "v1": "Ichidan verb",
+    "v5aru": "Godan verb - aru special class",
+    "v5b": "Godan verb with `bu' ending",
+    "v5g": "Godan verb with `gu' ending",
+    "v5k": "Godan verb with `ku' ending",
+    "v5k-s": "Godan verb - Iku/Yuku special class",
+    "v5m": "Godan verb with `mu' ending",
+    "v5n": "Godan verb with `nu' ending",
+    "v5r": "Godan verb with `ru' ending",
+    "v5s": "Godan verb with `su' ending",
+    "v5t": "Godan verb with `tsu' ending",
+    "v5u": "Godan verb with `u' ending",
+    "v5r-i": "Godan verb with `ru' ending - irregular",
+    "v5u-s": "Godan verb with `u' ending - special class",
+    "v5uru": "Godan verb - Uru old class verb",
+    "vi": "intransitive verb",
+    "vk": "Kuru verb",
+    "vs": "する verb - irregular",
+    "vs-i": "する verb - irregular",
+    "vs-s": "する verb - special class",
+    "vt": "transitive verb",
+    "adj-ix": "irregular i adjective",
+    "adj-ku": "-ku adjective",
+    "adj-nari": "archaic na adjective",
+    "adj-pn": "prenominal adjective",
+    "adj-shiku": "archaic shiku adjective",
+    "adj-t": "taru adjective",
+    "aux": "auxiliary",
+    "n-pref": "prefix",
+    "n-suf": "suffix",
+    "unc": "unclassified word",
+    "v-unspec": "unspecified verb",
+    "v1-s": "Ichidan verb - special class",
+    "v2a-s": "archaic nidan verb with `u' ending",
+    "v2b-k": "archaic nidan verb with `bu' ending",
+    "v2d-s": "archaic nidan verb with `zu' ending",
+    "v2g-k": "archaic nidan verb with `gu' ending",
+    "v2g-s": "archaic nidan verb with `gu' ending",
+    "v2h-k": "archaic nidan verb with `fu' ending",
+    "v2h-s": "archaic nidan verb with `bu' ending",
+    "v2k-k": "archaic nidan verb with `ku' ending",
+    "v2k-s": "archaic nidan verb with `ku' ending",
+    "v2m-s": "archaic nidan verb with `mu' ending",
+    "v2n-s": "archaic nidan verb with `nu' ending",
+    "v2r-k": "archaic nidan verb with `ru' ending",
+    "v2r-s": "archaic nidan verb with `ru' ending",
+    "v2s-s": "archaic nidan verb with `su' ending",
+    "v2t-k": "archaic nidan verb with `tsu' ending",
+    "v2t-s": "archaic nidan verb with `tsu' ending",
+    "v2w-s": "archaic nidan verb with `u' ending",
+    "v2y-k": "archaic nidan verb with `yu' ending",
+    "v2y-s": "archaic nidan verb with `yu' ending",
+    "v2z-s": "archaic nidan verb with `zu' ending",
+    "v4b": "Yodan verb with `bu' ending",
+    "v4g": "Yodan verb with `gu' ending",
+    "v4h": "Yodan verb with `fu' ending",
+    "v4k": "Yodan verb with `ku' ending",
+    "v4m": "Yodan verb with `mu' ending",
+    "v4r": "Yodan verb with `ru' ending",
+    "v4s": "Yodan verb with `su' ending",
+    "v4t": "Yodan verb with `tsu' ending",
+    "vn": "irregular nu verb",
+    "vr": "irregular ru verb",
+    "vs-c": "する verb - precursor to modern する",
+    "vz": "ずる verb",
+}
 
 
 class Dictionary:
@@ -38,24 +126,37 @@ class Dictionary:
         entry = entries[0]
         kanji = tuple(item.get("text", "") for item in entry.get("kanji", []))
         kana = tuple(item.get("text", "") for item in entry.get("kana", []))
+        canonical_word = _preferred_spelling(entry)
         meanings: list[str] = []
         examples: list[Example] = []
+        meaning_index = 0
+        previous_part_of_speech = None
         for sense in entry.get("sense", []):
-            part_of_speech = ", ".join(sense.get("partOfSpeech", []))
+            part_of_speech = _humanize_part_of_speech(sense.get("partOfSpeech", []))
             glosses = []
             for gloss in sense.get("gloss", []):
                 text = gloss.get("text", "") if isinstance(gloss, dict) else str(gloss)
                 if text:
                     glosses.append(text)
             if glosses:
-                prefix = f"{part_of_speech}<br>" if part_of_speech else ""
-                meanings.append(prefix + "<br>".join(f"{chr(0x24B6 + index)}&nbsp; {text}" for index, text in enumerate(glosses)))
+                prefix = f"{part_of_speech}<br>" if part_of_speech and part_of_speech != previous_part_of_speech else ""
+                related = _related_words(sense.get("related", []))
+                related_text = f" (see also: {', '.join(related)})" if related else ""
+                meanings.append(f"{prefix}{chr(0x24B6 + meaning_index)}&nbsp; {', '.join(glosses)}{related_text}")
+                meaning_index += 1
+                previous_part_of_speech = part_of_speech
             for example in sense.get("example", sense.get("examples", [])):
                 japanese = example.get("japanese", "")
                 english = example.get("english", "")
+                if not japanese or not english:
+                    sentences = {sentence.get("lang"): sentence.get("text", "") for sentence in example.get("sentences", [])}
+                    japanese = sentences.get("jpn", "")
+                    english = sentences.get("eng", "")
                 if japanese and english:
                     examples.append(Example(japanese, english))
-        return Card(word=word, readings=tuple(_to_hiragana(reading) for reading in (kana or kanji)), meanings=tuple(meanings), examples=tuple(examples), source_id=str(entry.get("id", "")) or None)
+        preferred_reading = _preferred_reading(entry)
+        readings = (_to_hiragana(preferred_reading),) if preferred_reading else ()
+        return Card(word=canonical_word or word, readings=readings, meanings=tuple(meanings), examples=tuple(examples), source_id=str(entry.get("id", "")) or None)
 
     @staticmethod
     def _forms(entry: dict[str, Any]) -> set[str]:
@@ -67,6 +168,38 @@ class Dictionary:
 
 def _to_hiragana(text: str) -> str:
     return "".join(chr(ord(character) - 0x60) if "ァ" <= character <= "ヶ" else character for character in text)
+
+
+def _preferred_spelling(entry: dict[str, Any]) -> str:
+    kanji = entry.get("kanji", [])
+    kana = entry.get("kana", [])
+    if kanji:
+        return next((item.get("text", "") for item in kanji if item.get("common")), kanji[0].get("text", ""))
+    return next((item.get("text", "") for item in kana if item.get("common")), kana[0].get("text", "") if kana else "")
+
+
+def _preferred_reading(entry: dict[str, Any]) -> str:
+    kana = entry.get("kana", [])
+    return next((item.get("text", "") for item in kana if item.get("common")), kana[0].get("text", "") if kana else "")
+
+
+def _humanize_part_of_speech(codes: list[str]) -> str:
+    labels = []
+    for code in codes:
+        label = POS_LABELS.get(code, code)
+        if label not in labels:
+            labels.append(label)
+    return ", ".join(labels)
+
+
+def _related_words(related: list[Any]) -> list[str]:
+    words = []
+    for relation in related:
+        if isinstance(relation, list) and relation and isinstance(relation[0], str):
+            word = relation[0]
+            if word not in words:
+                words.append(word)
+    return words
 
 
 def download_latest(path: Path) -> str:
