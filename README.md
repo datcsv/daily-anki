@@ -87,4 +87,12 @@ Run checks with:
 python -m pytest
 ```
 
+## License
+
+The project code in this repository is licensed under the Apache License, Version 2.0. See the [LICENSE](LICENSE) file for the full text.
+
+This project also depends on external data from JMDict Simplified and the local Anki/Apple Notes ecosystem. The dictionary data is not re-licensed by this repository and remains subject to its upstream terms. Please review the JMDict Simplified project and the relevant EDRG licensing information before redistributing downloaded dictionary files or derived datasets.
+
+For attribution and downstream compliance, see the [NOTICE](NOTICE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) files.
+
 The Apple Notes integration is isolated in `notes.py`; a future AnkiConnect/API integration can be added without changing lookup or export code.
