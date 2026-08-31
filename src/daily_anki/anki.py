@@ -1,4 +1,5 @@
 import json
+import math
 from dataclasses import dataclass
 from typing import Any, Callable, Optional
 from urllib.error import URLError
@@ -7,6 +8,7 @@ from urllib.request import Request, urlopen
 from .models import Card
 
 DEFAULT_ENDPOINT = "http://127.0.0.1:8765"
+DEFAULT_TIMEOUT = 10.0
 DEFAULT_DECK = "Daily Life"
 DEFAULT_NOTE_TYPE = "NihongoShark.com: JLPT Cramming Deck"
 FIELD_NAMES = (
@@ -35,15 +37,23 @@ class AnkiConnectError(RuntimeError):
 
 
 class AnkiConnectClient:
-    def __init__(self, endpoint: str = DEFAULT_ENDPOINT, opener: Callable[..., Any] = urlopen) -> None:
+    def __init__(
+        self,
+        endpoint: str = DEFAULT_ENDPOINT,
+        opener: Callable[..., Any] = urlopen,
+        timeout: float = DEFAULT_TIMEOUT,
+    ) -> None:
+        if not math.isfinite(timeout) or timeout <= 0:
+            raise ValueError("AnkiConnect timeout must be a positive finite number")
         self.endpoint = endpoint
+        self.timeout = timeout
         self._opener = opener
 
     def invoke(self, action: str, **params: Any) -> Any:
         payload = json.dumps({"action": action, "version": 6, "params": params}).encode("utf-8")
         request = Request(self.endpoint, data=payload, headers={"Content-Type": "application/json"})
         try:
-            with self._opener(request) as response:
+            with self._opener(request, timeout=self.timeout) as response:
                 result = json.loads(response.read().decode("utf-8"))
         except (OSError, URLError, UnicodeDecodeError, json.JSONDecodeError) as error:
             raise AnkiConnectError(f"Could not connect to AnkiConnect at {self.endpoint}: {error}") from error
@@ -199,7 +209,12 @@ def sync_configured_cards(
             created.append(source_word)
             existing_words.add(duplicate_key)
             continue
-        note_id = client.add_note(deck, note_type, fields_for_card(card))
+        try:
+            note_id = client.add_note(deck, note_type, fields_for_card(card))
+        except AnkiConnectError:
+            skipped.append(source_word)
+            failed.append(source_word)
+            continue
         if note_id is None:
             skipped.append(source_word)
             failed.append(source_word)

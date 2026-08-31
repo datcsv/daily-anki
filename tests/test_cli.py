@@ -20,6 +20,14 @@ def test_main_reports_operational_errors_without_traceback(monkeypatch, capsys):
     assert capsys.readouterr().err == "error: download failed\n"
 
 
+def test_anki_timeout_argument_is_validated():
+    parser = cli.build_parser()
+
+    assert parser.parse_args(["anki-check", "--timeout", "2.5"]).timeout == 2.5
+    with pytest.raises(SystemExit):
+        parser.parse_args(["anki-check", "--timeout", "0"])
+
+
 def test_export_cards_from_words_builds_tsv(tmp_path):
     dictionary_path = tmp_path / "dictionary.json"
     dictionary_path.write_text(
