@@ -5,6 +5,7 @@ from typing import List, Tuple
 
 from .anki import (
     AnkiConnectClient,
+    check_configuration,
     DEFAULT_DECK,
     DEFAULT_ENDPOINT,
     DEFAULT_NOTE_TYPE,
@@ -28,6 +29,10 @@ def build_parser() -> argparse.ArgumentParser:
     check.add_argument("--deck", default=DEFAULT_DECK)
     check.add_argument("--note-type", default=DEFAULT_NOTE_TYPE)
     check.add_argument("--endpoint", default=DEFAULT_ENDPOINT)
+    setup = commands.add_parser("anki-setup", help="create the Anki deck and note type if missing")
+    setup.add_argument("--deck", default=DEFAULT_DECK)
+    setup.add_argument("--note-type", default=DEFAULT_NOTE_TYPE)
+    setup.add_argument("--endpoint", default=DEFAULT_ENDPOINT)
     create = commands.add_parser("create", help="create an Anki TSV from words or Apple Notes")
     sync = commands.add_parser("sync", help="create cards directly in Anki Desktop through AnkiConnect")
     for command in (create, sync):
@@ -80,8 +85,12 @@ def _run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
         print(f"Downloaded {download_latest(args.output)} to {args.output}")
         return 0
     if args.command == "anki-check":
-        version = ensure_configuration(AnkiConnectClient(args.endpoint), args.deck, args.note_type)
+        version = check_configuration(AnkiConnectClient(args.endpoint), args.deck, args.note_type)
         print(f"AnkiConnect {version} is ready for deck '{args.deck}' and note type '{args.note_type}'")
+        return 0
+    if args.command == "anki-setup":
+        version = ensure_configuration(AnkiConnectClient(args.endpoint), args.deck, args.note_type)
+        print(f"AnkiConnect {version} is configured for deck '{args.deck}' and note type '{args.note_type}'")
         return 0
     if args.command == "sync" and args.clear_note and not args.note_name:
         parser.error("--clear-note requires --note-name")

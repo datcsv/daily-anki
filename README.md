@@ -51,6 +51,12 @@ Check the connection and configure the required Anki resources:
 daily-anki anki-check
 ```
 
+`anki-check` is read-only and fails if the deck or note type is missing. To create missing resources explicitly, run:
+
+```sh
+daily-anki anki-setup
+```
+
 Preview cards without changing Anki:
 
 ```sh
@@ -71,7 +77,7 @@ daily-anki sync --note-name "Daily Life" --dictionary data/jmdict-eng.json --cle
 
 `--clear-note` is only available with a specific `--note-name`. It preserves the title as the note heading, does not clear the note when any words were missing from JMDict, and leaves the note unchanged with `--dry-run`.
 
-The sync command uses the `Daily Life` deck and `NihongoShark.com: JLPT Cramming Deck` note type by default. If either is missing, `anki-check` or `sync` creates it. Override them with `--deck` and `--note-type`. Existing cards are detected by their `Target Japanese Word` field and skipped; sync does not update or delete existing notes. If a same-named note type exists but is missing required fields, the command stops rather than changing it.
+The sync command uses the `Daily Life` deck and `NihongoShark.com: JLPT Cramming Deck` note type by default. If either is missing, `sync` creates it. Override them with `--deck` and `--note-type`. Existing cards are detected by their `Target Japanese Word` field and skipped; sync does not update or delete existing notes. If a same-named note type exists but is missing required fields, the command stops rather than changing it.
 
 Each sync appends a JSONL event to `data/sync-history.jsonl`. Override that location with `--history`. The dictionary downloader verifies GitHub's SHA-256 digest when the release provides one and replaces the local file only after successful extraction.
 

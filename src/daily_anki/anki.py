@@ -143,6 +143,10 @@ def ensure_configuration(client: AnkiConnectClient, deck: str, note_type: str, c
     return version
 
 
+def check_configuration(client: AnkiConnectClient, deck: str, note_type: str) -> int:
+    return ensure_configuration(client, deck, note_type, create_missing=False)
+
+
 def fields_for_card(card: Card) -> dict[str, str]:
     example = card.examples[0] if card.examples else None
     values = (

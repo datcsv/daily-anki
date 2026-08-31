@@ -5,6 +5,7 @@ import pytest
 from daily_anki.anki import (
     AnkiConnectClient,
     AnkiConnectError,
+    check_configuration,
     DEFAULT_DECK,
     DEFAULT_NOTE_TYPE,
     FIELD_NAMES,
@@ -113,6 +114,13 @@ def test_dry_run_does_not_create_missing_configuration():
     client.deck_names = lambda: []
     with pytest.raises(AnkiConnectError, match="deck does not exist"):
         sync_cards(client, [Card("犬")], DEFAULT_DECK, DEFAULT_NOTE_TYPE, dry_run=True)
+
+
+def test_check_configuration_is_read_only():
+    client = FakeAnki()
+    client.deck_names = lambda: []
+    with pytest.raises(AnkiConnectError, match="deck does not exist"):
+        check_configuration(client, DEFAULT_DECK, DEFAULT_NOTE_TYPE)
 
 
 class Response:
