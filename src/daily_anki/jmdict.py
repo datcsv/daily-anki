@@ -1,6 +1,9 @@
-import json
+import hashlib
 import io
+import json
+import os
 import tarfile
+import tempfile
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -76,15 +79,30 @@ def download_latest(path: Path) -> str:
     path.parent.mkdir(parents=True, exist_ok=True)
     with urllib.request.urlopen(asset["browser_download_url"]) as response:
         archive = response.read()
-    if asset["name"].endswith(".zip"):
+    digest = asset.get("digest")
+    if digest and digest.startswith("sha256:"):
+        actual_digest = hashlib.sha256(archive).hexdigest()
+        if actual_digest != digest.removeprefix("sha256:"):
+            raise RuntimeError("JMDict archive checksum did not match GitHub's digest")
+    dictionary_json = _extract_json(archive, asset["name"])
+    with tempfile.NamedTemporaryFile(dir=path.parent, prefix=f".{path.name}.", delete=False) as temporary:
+        temporary.write(dictionary_json)
+        temporary_path = Path(temporary.name)
+    try:
+        os.replace(temporary_path, path)
+    finally:
+        temporary_path.unlink(missing_ok=True)
+    return asset["name"]
+
+
+def _extract_json(archive: bytes, asset_name: str) -> bytes:
+    if asset_name.endswith(".zip"):
         with zipfile.ZipFile(io.BytesIO(archive)) as compressed:
             json_name = next(name for name in compressed.namelist() if name.endswith(".json"))
-            path.write_bytes(compressed.read(json_name))
-    else:
-        with tarfile.open(fileobj=io.BytesIO(archive), mode="r:gz") as compressed:
-            json_member = next(member for member in compressed.getmembers() if member.name.endswith(".json"))
-            extracted = compressed.extractfile(json_member)
-            if extracted is None:
-                raise RuntimeError("The JMDict archive did not contain readable JSON")
-            path.write_bytes(extracted.read())
-    return asset["name"]
+            return compressed.read(json_name)
+    with tarfile.open(fileobj=io.BytesIO(archive), mode="r:gz") as compressed:
+        json_member = next(member for member in compressed.getmembers() if member.name.endswith(".json"))
+        extracted = compressed.extractfile(json_member)
+        if extracted is None:
+            raise RuntimeError("The JMDict archive did not contain readable JSON")
+        return extracted.read()

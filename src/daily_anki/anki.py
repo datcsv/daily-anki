@@ -49,6 +49,9 @@ class AnkiConnectClient:
     def deck_names(self) -> list[str]:
         return self.invoke("deckNames")
 
+    def version(self) -> int:
+        return self.invoke("version")
+
     def model_names(self) -> list[str]:
         return self.invoke("modelNames")
 
@@ -77,6 +80,15 @@ class SyncResult:
     skipped: tuple[str, ...] = ()
 
 
+def check_configuration(client: AnkiConnectClient, deck: str, note_type: str) -> int:
+    version = client.version()
+    if deck not in client.deck_names():
+        raise AnkiConnectError(f"Anki deck does not exist: {deck}")
+    if note_type not in client.model_names():
+        raise AnkiConnectError(f"Anki note type does not exist: {note_type}")
+    return version
+
+
 def fields_for_card(card: Card) -> dict[str, str]:
     example = card.examples[0] if card.examples else None
     values = (
@@ -97,10 +109,7 @@ def fields_for_card(card: Card) -> dict[str, str]:
 
 
 def sync_cards(client: AnkiConnectClient, cards: list[Card], deck: str, note_type: str, dry_run: bool = False) -> SyncResult:
-    if deck not in client.deck_names():
-        raise AnkiConnectError(f"Anki deck does not exist: {deck}")
-    if note_type not in client.model_names():
-        raise AnkiConnectError(f"Anki note type does not exist: {note_type}")
+    check_configuration(client, deck, note_type)
 
     existing_ids = client.find_notes(f'deck:"{deck}" note:"{note_type}"')
     existing_notes = client.notes_info(existing_ids) if existing_ids else []
@@ -111,8 +120,14 @@ def sync_cards(client: AnkiConnectClient, cards: list[Card], deck: str, note_typ
         if card.word in existing_words:
             skipped.append(card.word)
             continue
-        if not dry_run:
-            client.add_note(deck, note_type, fields_for_card(card))
-        created.append(card.word)
-        existing_words.add(card.word)
+        if dry_run:
+            created.append(card.word)
+            existing_words.add(card.word)
+            continue
+        note_id = client.add_note(deck, note_type, fields_for_card(card))
+        if note_id is None:
+            skipped.append(card.word)
+        else:
+            created.append(card.word)
+            existing_words.add(card.word)
     return SyncResult(tuple(created), tuple(skipped))

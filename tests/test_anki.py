@@ -30,6 +30,9 @@ class FakeAnki:
     def deck_names(self):
         return [DEFAULT_DECK]
 
+    def version(self):
+        return 6
+
     def model_names(self):
         return [DEFAULT_NOTE_TYPE]
 
@@ -57,6 +60,14 @@ def test_sync_dry_run_does_not_add_cards():
     result = sync_cards(client, [Card("犬")], DEFAULT_DECK, DEFAULT_NOTE_TYPE, dry_run=True)
     assert result.created == ("犬",)
     assert client.added == []
+
+
+def test_sync_treats_null_add_result_as_skipped():
+    client = FakeAnki()
+    client.add_note = lambda deck, note_type, fields: None
+    result = sync_cards(client, [Card("犬")], DEFAULT_DECK, DEFAULT_NOTE_TYPE)
+    assert result.created == ()
+    assert result.skipped == ("犬",)
 
 
 def test_sync_requires_existing_deck():

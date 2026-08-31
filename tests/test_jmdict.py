@@ -1,6 +1,8 @@
 import json
+import io
+import zipfile
 
-from daily_anki.jmdict import Dictionary
+from daily_anki.jmdict import Dictionary, _extract_json
 
 
 def test_lookup_matches_kanji_and_collects_meanings_examples(tmp_path):
@@ -24,3 +26,10 @@ def test_lookup_converts_katakana_reading_to_hiragana():
     card = Dictionary([{"kanji": [{"text": "珈琲"}], "kana": [{"text": "コーヒー"}]}]).lookup("珈琲")
     assert card is not None
     assert card.readings == ("こーひー",)
+
+
+def test_extract_json_from_zip_asset():
+    archive = io.BytesIO()
+    with zipfile.ZipFile(archive, "w") as compressed:
+        compressed.writestr("jmdict-examples-eng.json", b'{"words": []}')
+    assert _extract_json(archive.getvalue(), "jmdict-examples-eng.zip") == b'{"words": []}'

@@ -1,8 +1,9 @@
 import argparse
 from pathlib import Path
 
-from .anki import AnkiConnectClient, DEFAULT_DECK, DEFAULT_ENDPOINT, DEFAULT_NOTE_TYPE, sync_cards
+from .anki import AnkiConnectClient, DEFAULT_DECK, DEFAULT_ENDPOINT, DEFAULT_NOTE_TYPE, check_configuration, sync_cards
 from .export import write_tsv
+from .history import append_sync_event
 from .jmdict import Dictionary, download_latest
 from .notes import fetch_words
 
@@ -12,6 +13,10 @@ def build_parser() -> argparse.ArgumentParser:
     commands = parser.add_subparsers(dest="command", required=True)
     download = commands.add_parser("download-dictionary", help="download the latest English JMDict JSON with examples")
     download.add_argument("--output", type=Path, default=Path("data/jmdict-eng.json"))
+    check = commands.add_parser("anki-check", help="check AnkiConnect, deck, and note type")
+    check.add_argument("--deck", default=DEFAULT_DECK)
+    check.add_argument("--note-type", default=DEFAULT_NOTE_TYPE)
+    check.add_argument("--endpoint", default=DEFAULT_ENDPOINT)
     create = commands.add_parser("create", help="create an Anki TSV from words or Apple Notes")
     sync = commands.add_parser("sync", help="create cards directly in Anki Desktop through AnkiConnect")
     for command in (create, sync):
@@ -25,6 +30,7 @@ def build_parser() -> argparse.ArgumentParser:
     sync.add_argument("--note-type", default=DEFAULT_NOTE_TYPE)
     sync.add_argument("--endpoint", default=DEFAULT_ENDPOINT)
     sync.add_argument("--dry-run", action="store_true", help="show what would be added without changing Anki")
+    sync.add_argument("--history", type=Path, default=Path("data/sync-history.jsonl"))
     return parser
 
 
@@ -32,6 +38,10 @@ def main() -> int:
     args = build_parser().parse_args()
     if args.command == "download-dictionary":
         print(f"Downloaded {download_latest(args.output)} to {args.output}")
+        return 0
+    if args.command == "anki-check":
+        version = check_configuration(AnkiConnectClient(args.endpoint), args.deck, args.note_type)
+        print(f"AnkiConnect {version} is ready for deck '{args.deck}' and note type '{args.note_type}'")
         return 0
     if not args.words_file and not args.note_name and not args.notes_folder:
         build_parser().error("one of --words-file, --note-name, or --notes-folder is required")
@@ -50,6 +60,7 @@ def main() -> int:
             cards.append(card)
     if args.command == "sync":
         result = sync_cards(AnkiConnectClient(args.endpoint), cards, args.deck, args.note_type, args.dry_run)
+        append_sync_event(args.history, args.deck, args.note_type, result, missing, args.dry_run)
         action = "would add" if args.dry_run else "added"
         print(f"{action.capitalize()} {len(result.created)} cards to {args.deck}")
         if result.skipped:
