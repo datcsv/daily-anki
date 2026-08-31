@@ -15,6 +15,7 @@ from .adapters import (
     JMDictDictionarySource,
     AnkiConnectGateway,
 )
+from .anki_sync_service import AnkiSyncService, AnkiSyncConfig
 from .gateways import NotesGateway, AnkiGateway
 from .history import append_sync_event
 from .models import Card
@@ -78,21 +79,22 @@ def main() -> int:
     try:
         notes_gateway = AppleNotesGateway()
         anki_gateway = AnkiConnectGateway(AnkiConnectClient(args.endpoint if hasattr(args, "endpoint") else DEFAULT_ENDPOINT))
-        return _run(args, parser, notes_gateway, anki_gateway)
+        anki_sync_service = AnkiSyncService(anki_gateway)
+        return _run(args, parser, notes_gateway, anki_sync_service)
     except (AnkiConnectError, OSError, RuntimeError, ValueError, subprocess.CalledProcessError) as error:
         parser.exit(1, f"error: {error}\n")
 
 
-def _run(args: argparse.Namespace, parser: argparse.ArgumentParser, notes_gateway: NotesGateway, anki_gateway: AnkiGateway) -> int:
+def _run(args: argparse.Namespace, parser: argparse.ArgumentParser, notes_gateway: NotesGateway, anki_sync_service: AnkiSyncService) -> int:
     if args.command == "download-dictionary":
         print(f"Downloaded {download_latest(args.output)} to {args.output}")
         return 0
     if args.command == "anki-check":
-        version = anki_gateway.check_configuration(args.deck, args.note_type)
+        version = anki_sync_service.check_config(args.deck, args.note_type)
         print(f"AnkiConnect {version} is ready for deck '{args.deck}' and note type '{args.note_type}'")
         return 0
     if args.command == "anki-setup":
-        version = anki_gateway.ensure_configuration(args.deck, args.note_type)
+        version = anki_sync_service.ensure_config(args.deck, args.note_type)
         print(f"AnkiConnect {version} is configured for deck '{args.deck}' and note type '{args.note_type}'")
         return 0
     if args.command == "sync" and args.clear_note and not args.note_name:
@@ -101,7 +103,8 @@ def _run(args: argparse.Namespace, parser: argparse.ArgumentParser, notes_gatewa
     dictionary_source = JMDictDictionarySource.from_file(args.dictionary)
     cards, missing = _lookup_cards(words, dictionary_source)
     if args.command == "sync":
-        result = anki_gateway.sync_cards(cards, args.deck, args.note_type, args.dry_run)
+        config = AnkiSyncConfig(deck=args.deck, note_type=args.note_type, dry_run=args.dry_run)
+        result = anki_sync_service.sync(cards, config)
         append_sync_event(args.history, args.deck, args.note_type, result, missing, args.dry_run)
         action = "would add" if args.dry_run else "added"
         print(f"{action.capitalize()} {len(result.created)} cards to {args.deck}")
