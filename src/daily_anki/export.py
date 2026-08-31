@@ -2,6 +2,7 @@ import csv
 from pathlib import Path
 
 from .models import Card
+from .anki import fields_for_card
 
 
 def write_tsv(cards: list[Card], path: Path) -> None:
@@ -9,18 +10,4 @@ def write_tsv(cards: list[Card], path: Path) -> None:
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.writer(handle, delimiter="\t", lineterminator="\n")
         for card in cards:
-            example = card.examples[0] if card.examples else None
-            writer.writerow([
-                card.word,
-                "",
-                example.japanese if example else "",
-                example.english if example else "",
-                card.word,
-                "\n".join(card.readings),
-                card.word,
-                "\n".join(card.readings),
-                "",
-                "<br>".join(card.meanings),
-                "",
-                "",
-            ])
+            writer.writerow(fields_for_card(card).values())

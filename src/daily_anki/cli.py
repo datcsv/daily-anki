@@ -1,6 +1,7 @@
 import argparse
 from pathlib import Path
 
+from .anki import AnkiConnectClient, DEFAULT_DECK, DEFAULT_ENDPOINT, DEFAULT_NOTE_TYPE, sync_cards
 from .export import write_tsv
 from .jmdict import Dictionary, download_latest
 from .notes import fetch_words
@@ -11,13 +12,19 @@ def build_parser() -> argparse.ArgumentParser:
     commands = parser.add_subparsers(dest="command", required=True)
     download = commands.add_parser("download-dictionary", help="download the latest English JMDict JSON with examples")
     download.add_argument("--output", type=Path, default=Path("data/jmdict-eng.json"))
-    create = commands.add_parser("create", help="create Anki cards from words or Apple Notes")
-    source = create.add_mutually_exclusive_group()
-    source.add_argument("--words-file", type=Path)
-    source.add_argument("--note-name", metavar="NOTE")
-    create.add_argument("--notes-folder", default="", metavar="FOLDER")
-    create.add_argument("--dictionary", type=Path, required=True)
+    create = commands.add_parser("create", help="create an Anki TSV from words or Apple Notes")
+    sync = commands.add_parser("sync", help="create cards directly in Anki Desktop through AnkiConnect")
+    for command in (create, sync):
+        source = command.add_mutually_exclusive_group()
+        source.add_argument("--words-file", type=Path)
+        source.add_argument("--note-name", metavar="NOTE")
+        command.add_argument("--notes-folder", default="", metavar="FOLDER")
+        command.add_argument("--dictionary", type=Path, required=True)
     create.add_argument("--output", type=Path, default=Path("exports/daily.tsv"))
+    sync.add_argument("--deck", default=DEFAULT_DECK)
+    sync.add_argument("--note-type", default=DEFAULT_NOTE_TYPE)
+    sync.add_argument("--endpoint", default=DEFAULT_ENDPOINT)
+    sync.add_argument("--dry-run", action="store_true", help="show what would be added without changing Anki")
     return parser
 
 
@@ -41,8 +48,15 @@ def main() -> int:
             missing.append(word)
         else:
             cards.append(card)
-    write_tsv(cards, args.output)
-    print(f"Wrote {len(cards)} cards to {args.output}")
+    if args.command == "sync":
+        result = sync_cards(AnkiConnectClient(args.endpoint), cards, args.deck, args.note_type, args.dry_run)
+        action = "would add" if args.dry_run else "added"
+        print(f"{action.capitalize()} {len(result.created)} cards to {args.deck}")
+        if result.skipped:
+            print(f"Skipped existing ({len(result.skipped)}): {', '.join(result.skipped)}")
+    else:
+        write_tsv(cards, args.output)
+        print(f"Wrote {len(cards)} cards to {args.output}")
     if missing:
         print(f"No match ({len(missing)}): {', '.join(missing)}")
     return 0
