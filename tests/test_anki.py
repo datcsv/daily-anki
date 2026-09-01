@@ -19,12 +19,24 @@ from daily_anki.anki_sync_service import AnkiSyncConfig, AnkiSyncService
 from daily_anki.models import Card, Example
 
 
+def test_default_note_type_uses_custom_daily_anki_model():
+    assert DEFAULT_NOTE_TYPE == "Daily Anki"
+    assert FIELD_NAMES == (
+        "Target Japanese Word",
+        "Target Word Furigana",
+        "English Definition",
+        "Japanese Example Sentence",
+        "English Translation of Sentence",
+        "Notes",
+    )
+
+
 def test_fields_for_card_matches_deck_contract():
     fields = fields_for_card(Card("猫", ("ねこ",), ("Ⓐ&nbsp; cat",), (Example("猫です。", "It is a cat."),)))
-    assert fields["Target Word with Ruby"] == fields["Target Japanese Word"] == fields["Target Japanese Word 2"] == "猫"
-    assert fields["Target Word Furigana"] == fields["Target Furigana 2"] == "ねこ"
-    assert fields["English Definition (Lengthy Version)"] == ""
-    assert fields["Target Romaji"] == fields["Audio"] == fields["Notes"] == ""
+    assert fields["Target Japanese Word"] == "猫"
+    assert fields["Target Word Furigana"] == "ねこ"
+    assert fields["English Definition"] == "Ⓐ&nbsp; cat"
+    assert fields["Notes"] == ""
     assert fields["Japanese Example Sentence"] == "猫です。"
     assert fields["English Translation of Sentence"] == "It is a cat."
 
@@ -228,6 +240,21 @@ def test_client_invokes_anki_connect():
     assert AnkiConnectClient(opener=opener).deck_names() == [DEFAULT_DECK]
     assert requests[0]["action"] == "deckNames"
     assert requests[0]["version"] == 6
+
+
+def test_client_creates_model_with_anki_connect_field_names():
+    requests = []
+
+    def opener(request, *, timeout):
+        requests.append(json.loads(request.data.decode("utf-8")))
+        return Response({"result": None, "error": None})
+
+    client = AnkiConnectClient(opener=opener)
+    client.create_model(DEFAULT_NOTE_TYPE)
+
+    assert requests[0]["action"] == "createModel"
+    assert requests[0]["params"]["inOrderFields"] == list(FIELD_NAMES)
+    assert "inOrder" not in requests[0]["params"]
 
 
 def test_client_uses_configured_timeout():
