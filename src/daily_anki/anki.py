@@ -10,25 +10,39 @@ from .models import Card
 DEFAULT_ENDPOINT = "http://127.0.0.1:8765"
 DEFAULT_TIMEOUT = 10.0
 DEFAULT_DECK = "Daily Life"
-DEFAULT_NOTE_TYPE = "NihongoShark.com: JLPT Cramming Deck"
+DEFAULT_NOTE_TYPE = "Daily Anki"
 FIELD_NAMES = (
-    "Target Word with Ruby",
-    "English Definition (Lengthy Version)",
-    "Japanese Example Sentence",
-    "English Translation of Sentence",
     "Target Japanese Word",
     "Target Word Furigana",
-    "Target Japanese Word 2",
-    "Target Furigana 2",
-    "Target Romaji",
-    "Simple Definition",
-    "Audio",
+    "English Definition",
+    "Japanese Example Sentence",
+    "English Translation of Sentence",
     "Notes",
 )
 DEFAULT_CARD_TEMPLATES = ({
     "Name": "Card 1",
-    "Front": "{{Target Word with Ruby}}",
-    "Back": "{{FrontSide}}<hr id=answer>{{Simple Definition}}<br>{{Japanese Example Sentence}}<br>{{English Translation of Sentence}}",
+    "Front": (
+        "<div style='font-family: Arial; font-size: 14px;'>{{Target Word Furigana}}</div>"
+        "<div style='font-family: MS Mincho, Arial; font-size: 35px;'>{{Target Japanese Word}}</div><br/>"
+        "<hr>"
+        "<div style='font-family: MS Mincho, Arial; font-size: 30px;'>{{furigana:Japanese Example Sentence}}</div>"
+    ),
+    "Back": (
+        "<div style='font-family: Arial; font-size: 14px;'>{{Target Word Furigana}}</div>"
+        "<div style='font-family: MS Mincho, Arial; font-size: 35px;'>{{Target Japanese Word}}</div>"
+        "<div style='font-family: Arial; font-size: 20px; color:blue;'>{{English Definition}}</div>"
+        "<hr>"
+        "<div style='font-family: MS Mincho, Arial; font-size: 30px;'>{{furigana:Japanese Example Sentence}}</div>"
+        "<div style='font-family: Arial; font-size: 20px;color:blue;'>{{English Translation of Sentence}}</div>"
+        "<hr>"
+        "<p style='font-family: Arial; font-size: 18px;'>"
+        "<span style='font-family: Arial; font-size: 12px;'>Look up <span style='font-family: MS Mincho,Arial; font-size: 12px;'>{{Target Japanese Word}}</span> on...</span><br/>"
+        "* <a href=\"http://classic.jisho.org/words?jap={{Target Japanese Word}}\">Jisho.org</a> *<br/>"
+        "* <a href=\"http://ejje.weblio.jp/content/{{Target Japanese Word}}\">Weblio.jp</a> *<br/>"
+        "* <a href=\"http://search.ameba.jp/search.html?q={{Target Japanese Word}}\">Ameba.jp</a> *<br/>"
+        "</p>"
+        "{{Notes}}"
+    ),
 },)
 
 
@@ -91,11 +105,23 @@ class AnkiConnectClient:
         return self.invoke("createDeck", deck=deck)
 
     def create_model(self, model_name: str) -> Any:
+        css = """
+.card {
+ font-family: arial;
+ font-size: 24px;
+ text-align: center;
+ color: black;
+ background-color: white;
+}
+.card1 { background-color: #ffffff; }
+.card2 { background-color: #ffffff; }
+.card3 { background-color: #ffffff; }
+"""
         return self.invoke(
             "createModel",
             modelName=model_name,
-            inOrder=list(FIELD_NAMES),
-            css=".card { font-family: arial; font-size: 24px; text-align: center; color: black; background-color: white; }",
+            inOrderFields=list(FIELD_NAMES),
+            css=css,
             isCloze=False,
             cardTemplates=list(DEFAULT_CARD_TEMPLATES),
         )
@@ -163,16 +189,10 @@ def fields_for_card(card: Card) -> dict[str, str]:
     example = card.examples[0] if card.examples else None
     values = (
         card.word,
-        "",
+        "\n".join(card.readings),
+        "<br>".join(card.meanings),
         example.japanese if example else "",
         example.english if example else "",
-        card.word,
-        "\n".join(card.readings),
-        card.word,
-        "\n".join(card.readings),
-        "",
-        "<br>".join(card.meanings),
-        "",
         "",
     )
     return dict(zip(FIELD_NAMES, values))
@@ -191,8 +211,7 @@ def sync_configured_cards(
     existing_ids = client.find_notes(f'deck:"{_escape_query_value(deck)}" note:"{_escape_query_value(note_type)}"')
     existing_notes = client.notes_info(existing_ids) if existing_ids else []
     existing_words = {
-        _normalize_duplicate_key(note.get("fields", {}).get("Target Japanese Word", {}).get("value", ""))
-        for note in existing_notes
+        _normalize_duplicate_key(_note_word_value(note)) for note in existing_notes
     }
     created = []
     skipped = []
@@ -222,6 +241,17 @@ def sync_configured_cards(
             created.append(source_word)
             existing_words.add(duplicate_key)
     return SyncResult(tuple(created), tuple(skipped), tuple(existing), tuple(failed))
+
+
+def _note_word_value(note: dict[str, Any]) -> str:
+    fields = note.get("fields", {})
+    if not isinstance(fields, dict):
+        return ""
+    for field_name in ("Target Word with Ruby", "Target Japanese Word"):
+        value = fields.get(field_name, {}).get("value", "") if isinstance(fields.get(field_name), dict) else ""
+        if value:
+            return value
+    return ""
 
 
 def _escape_query_value(value: str) -> str:
