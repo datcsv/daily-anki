@@ -124,8 +124,6 @@ class Dictionary:
         if not entries:
             return None
         entry = entries[0]
-        kanji = tuple(item.get("text", "") for item in entry.get("kanji", []))
-        kana = tuple(item.get("text", "") for item in entry.get("kana", []))
         canonical_word = _preferred_spelling(entry)
         meanings: list[str] = []
         examples: list[Example] = []
@@ -139,17 +137,26 @@ class Dictionary:
                 if text:
                     glosses.append(text)
             if glosses:
-                prefix = f"{part_of_speech}<br>" if part_of_speech and part_of_speech != previous_part_of_speech else ""
+                prefix = (
+                    f"{part_of_speech}<br>"
+                    if part_of_speech and part_of_speech != previous_part_of_speech
+                    else ""
+                )
                 related = _related_words(sense.get("related", []))
                 related_text = f" (see also: {', '.join(related)})" if related else ""
-                meanings.append(f"{prefix}{chr(0x24B6 + meaning_index)}&nbsp; {', '.join(glosses)}{related_text}")
+                meanings.append(
+                    f"{prefix}{chr(0x24B6 + meaning_index)}&nbsp; {', '.join(glosses)}{related_text}"
+                )
                 meaning_index += 1
                 previous_part_of_speech = part_of_speech
             for example in sense.get("example", sense.get("examples", [])):
                 japanese = example.get("japanese", "")
                 english = example.get("english", "")
                 if not japanese or not english:
-                    sentences = {sentence.get("lang"): sentence.get("text", "") for sentence in example.get("sentences", [])}
+                    sentences = {
+                        sentence.get("lang"): sentence.get("text", "")
+                        for sentence in example.get("sentences", [])
+                    }
                     japanese = sentences.get("jpn", "")
                     english = sentences.get("eng", "")
                 if japanese and english:
@@ -174,20 +181,30 @@ class Dictionary:
 
 
 def _to_hiragana(text: str) -> str:
-    return "".join(chr(ord(character) - 0x60) if "ァ" <= character <= "ヶ" else character for character in text)
+    return "".join(
+        chr(ord(character) - 0x60) if "ァ" <= character <= "ヶ" else character for character in text
+    )
 
 
 def _preferred_spelling(entry: dict[str, Any]) -> str:
     kanji = entry.get("kanji", [])
     kana = entry.get("kana", [])
     if kanji:
-        return next((item.get("text", "") for item in kanji if item.get("common")), kanji[0].get("text", ""))
-    return next((item.get("text", "") for item in kana if item.get("common")), kana[0].get("text", "") if kana else "")
+        return next(
+            (item.get("text", "") for item in kanji if item.get("common")), kanji[0].get("text", "")
+        )
+    return next(
+        (item.get("text", "") for item in kana if item.get("common")),
+        kana[0].get("text", "") if kana else "",
+    )
 
 
 def _preferred_reading(entry: dict[str, Any]) -> str:
     kana = entry.get("kana", [])
-    return next((item.get("text", "") for item in kana if item.get("common")), kana[0].get("text", "") if kana else "")
+    return next(
+        (item.get("text", "") for item in kana if item.get("common")),
+        kana[0].get("text", "") if kana else "",
+    )
 
 
 def _humanize_part_of_speech(codes: list[str]) -> str:
@@ -213,7 +230,15 @@ def download_latest(path: Path) -> str:
     request = urllib.request.Request(LATEST_RELEASE_API, headers={"User-Agent": "daily-anki"})
     with urllib.request.urlopen(request) as response:
         release = json.load(response)
-    asset = next((item for item in release.get("assets", []) if "jmdict-examples-eng" in item.get("name", "") and item.get("name", "").endswith((".zip", ".tgz"))), None)
+    asset = next(
+        (
+            item
+            for item in release.get("assets", [])
+            if "jmdict-examples-eng" in item.get("name", "")
+            and item.get("name", "").endswith((".zip", ".tgz"))
+        ),
+        None,
+    )
     if asset is None:
         raise RuntimeError("Could not find the English JMDict JSON asset in the latest release")
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -225,7 +250,9 @@ def download_latest(path: Path) -> str:
         if actual_digest != digest.removeprefix("sha256:"):
             raise RuntimeError("JMDict archive checksum did not match GitHub's digest")
     dictionary_json = _extract_json(archive, asset["name"])
-    with tempfile.NamedTemporaryFile(dir=path.parent, prefix=f".{path.name}.", delete=False) as temporary:
+    with tempfile.NamedTemporaryFile(
+        dir=path.parent, prefix=f".{path.name}.", delete=False
+    ) as temporary:
         temporary.write(dictionary_json)
         temporary_path = Path(temporary.name)
     try:
@@ -241,7 +268,9 @@ def _extract_json(archive: bytes, asset_name: str) -> bytes:
             json_name = next(name for name in compressed.namelist() if name.endswith(".json"))
             return compressed.read(json_name)
     with tarfile.open(fileobj=io.BytesIO(archive), mode="r:gz") as compressed:
-        json_member = next(member for member in compressed.getmembers() if member.name.endswith(".json"))
+        json_member = next(
+            member for member in compressed.getmembers() if member.name.endswith(".json")
+        )
         extracted = compressed.extractfile(json_member)
         if extracted is None:
             raise RuntimeError("The JMDict archive did not contain readable JSON")

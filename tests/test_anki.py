@@ -2,19 +2,19 @@ import json
 
 import pytest
 
+from daily_anki.adapters import AnkiConnectGateway
 from daily_anki.anki import (
-    AnkiConnectClient,
-    AnkiConnectError,
-    check_configuration,
     DEFAULT_DECK,
     DEFAULT_NOTE_TYPE,
     FIELD_NAMES,
+    AnkiConnectClient,
+    AnkiConnectError,
     SyncResult,
     _escape_query_value,
+    check_configuration,
     fields_for_card,
     sync_cards,
 )
-from daily_anki.adapters import AnkiConnectGateway
 from daily_anki.anki_sync_service import AnkiSyncConfig, AnkiSyncService
 from daily_anki.models import Card, Example
 
@@ -32,7 +32,9 @@ def test_default_note_type_uses_custom_daily_anki_model():
 
 
 def test_fields_for_card_matches_deck_contract():
-    fields = fields_for_card(Card("猫", ("ねこ",), ("Ⓐ&nbsp; cat",), (Example("猫です。", "It is a cat."),)))
+    fields = fields_for_card(
+        Card("猫", ("ねこ",), ("Ⓐ&nbsp; cat",), (Example("猫です。", "It is a cat."),))
+    )
     assert fields["Target Japanese Word"] == "猫"
     assert fields["Target Word Furigana"] == "ねこ"
     assert fields["English Definition"] == "Ⓐ&nbsp; cat"
@@ -123,7 +125,9 @@ def test_sync_service_configures_once_before_syncing():
             return SyncResult(tuple(card.word for card in cards), ())
 
     gateway = FakeGateway()
-    result = AnkiSyncService(gateway).sync([Card("犬")], AnkiSyncConfig(DEFAULT_DECK, DEFAULT_NOTE_TYPE))
+    result = AnkiSyncService(gateway).sync(
+        [Card("犬")], AnkiSyncConfig(DEFAULT_DECK, DEFAULT_NOTE_TYPE)
+    )
 
     assert result.created == ("犬",)
     assert gateway.ensure_calls == gateway.sync_calls == 1
@@ -177,7 +181,9 @@ def test_sync_reports_the_original_lookup_word_for_note_cleanup():
 
 def test_sync_matches_existing_katakana_spelling():
     client = FakeAnki()
-    client.notes_info = lambda note_ids: [{"fields": {"Target Japanese Word": {"value": "ムカつく"}}}]
+    client.notes_info = lambda note_ids: [
+        {"fields": {"Target Japanese Word": {"value": "ムカつく"}}}
+    ]
     result = sync_cards(client, [Card("むかつく")], DEFAULT_DECK, DEFAULT_NOTE_TYPE)
     assert result.created == ()
     assert result.skipped == ("むかつく",)
@@ -290,4 +296,4 @@ def test_client_rejects_invalid_typed_result():
 
 
 def test_escape_query_value_handles_quotes_and_backslashes():
-    assert _escape_query_value(r'Deck \"today\"') == r'Deck \\\"today\\\"'
+    assert _escape_query_value(r"Deck \"today\"") == r"Deck \\\"today\\\""

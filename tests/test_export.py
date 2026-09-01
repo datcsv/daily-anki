@@ -16,4 +16,3 @@ def test_write_tsv_escapes_tabs_and_keeps_examples(tmp_path):
     assert row[3] == "猫です。"
     assert row[4] == "It is a cat."
     assert row[5] == ""
-

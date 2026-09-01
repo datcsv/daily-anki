@@ -4,8 +4,7 @@ from dataclasses import dataclass
 from html.parser import HTMLParser
 from typing import Optional
 
-
-APPLE_SCRIPT = r'''on run argv
+APPLE_SCRIPT = r"""on run argv
     set requestedFolder to item 1 of argv
     set requestedNote to item 2 of argv
     tell application "Notes"
@@ -19,9 +18,9 @@ APPLE_SCRIPT = r'''on run argv
         end repeat
         return output
     end tell
-end run'''
+end run"""
 
-CLEAR_NOTE_SCRIPT = r'''on run argv
+CLEAR_NOTE_SCRIPT = r"""on run argv
     set requestedFolder to item 1 of argv
     set requestedNote to item 2 of argv
     tell application "Notes"
@@ -34,9 +33,9 @@ CLEAR_NOTE_SCRIPT = r'''on run argv
         end repeat
         error "Note not found: " & requestedNote
     end tell
-end run'''
+end run"""
 
-READ_NOTE_BODY_SCRIPT = r'''on run argv
+READ_NOTE_BODY_SCRIPT = r"""on run argv
     set requestedFolder to item 1 of argv
     set requestedNote to item 2 of argv
     tell application "Notes"
@@ -47,9 +46,9 @@ READ_NOTE_BODY_SCRIPT = r'''on run argv
         end repeat
         error "Note not found: " & requestedNote
     end tell
-end run'''
+end run"""
 
-SET_NOTE_BODY_SCRIPT = r'''on run argv
+SET_NOTE_BODY_SCRIPT = r"""on run argv
     set requestedFolder to item 1 of argv
     set requestedNote to item 2 of argv
     set updatedBody to item 3 of argv
@@ -62,7 +61,7 @@ SET_NOTE_BODY_SCRIPT = r'''on run argv
         end repeat
         error "Note not found: " & requestedNote
     end tell
-end run'''
+end run"""
 
 JAPANESE_RUN = re.compile(r"[\u3040-\u309f\u30a0-\u30ff\u3400-\u4dbf\u4e00-\u9fff々ー]+")
 LIST_MARKER = re.compile(r"^\s*(?:[-*•]|\[[ xX]\])\s*")
@@ -157,7 +156,9 @@ class _BlockParser(HTMLParser):
         super().__init__(convert_charrefs=True)
         self._html = html
         self._line_starts = [0]
-        self._line_starts.extend(index + 1 for index, character in enumerate(html) if character == "\n")
+        self._line_starts.extend(
+            index + 1 for index, character in enumerate(html) if character == "\n"
+        )
         self._open_tags: list[_HtmlBlock] = []
         self.blocks: list[_HtmlBlock] = []
 
@@ -171,7 +172,10 @@ class _BlockParser(HTMLParser):
                 block.contains_link = True
         if tag not in REMOVABLE_BLOCK_TAGS:
             return
-        parent = next((block for block in reversed(self._open_tags) if block.tag in REMOVABLE_BLOCK_TAGS), None)
+        parent = next(
+            (block for block in reversed(self._open_tags) if block.tag in REMOVABLE_BLOCK_TAGS),
+            None,
+        )
         block = _HtmlBlock(tag=tag, start=self._offset(), parent=parent)
         self._open_tags.append(block)
 
@@ -206,16 +210,22 @@ def remove_words_from_html(html: str, words: list[str]) -> str:
     for block in parser.blocks:
         if block.end is None or block.contains_link:
             continue
-        block_html = html[block.start:block.end]
+        block_html = html[block.start : block.end]
         parsed_words = parse_note_words(block_html)
         if len(parsed_words) != 1 or parsed_words[0] not in requested_words:
             continue
         visible_text = _visible_text(block_html).strip()
-        if block.tag == "li" or visible_text == parsed_words[0] or LIST_ITEM_MARKER.match(visible_text):
+        if (
+            block.tag == "li"
+            or visible_text == parsed_words[0]
+            or LIST_ITEM_MARKER.match(visible_text)
+        ):
             removable.append(block)
 
     ranges = _outermost_ranges(removable)
-    return "".join(part for index, part in enumerate(_split_html_at_ranges(html, ranges)) if index % 2 == 0)
+    return "".join(
+        part for index, part in enumerate(_split_html_at_ranges(html, ranges)) if index % 2 == 0
+    )
 
 
 def _visible_text(html: str) -> str:
