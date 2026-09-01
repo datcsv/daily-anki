@@ -14,7 +14,23 @@ def export_cards_from_words(
 ) -> tuple[int, list[str]]:
     """Export words to a TSV file using the provided dictionary source.
 
+    Looks up each word in the dictionary and writes matching cards to a TSV file
+    that can be imported into Anki. Creates the output directory if needed.
+
     If no dictionary_source is provided, creates a JMDict source from dictionary_path.
+
+    Args:
+        words: List of Japanese words to look up
+        dictionary_path: Path to dictionary JSON file (used if dictionary_source is None)
+        output_path: Path where the TSV file will be written
+        dictionary_source: Optional DictionarySource instance (for testing/reuse)
+
+    Returns:
+        Tuple of (number of successfully created cards, list of words not found in dictionary)
+
+    Raises:
+        FileNotFoundError: If dictionary file does not exist
+        ValueError: If dictionary format is invalid
     """
     if dictionary_source is None:
         from .adapters import JMDictDictionarySource

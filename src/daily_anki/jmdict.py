@@ -103,7 +103,19 @@ POS_LABELS = {
 
 
 class Dictionary:
+    """Dictionary for looking up Japanese words using JMDict Simplified format.
+
+    Supports lookups by kanji or kana (hiragana/katakana). Automatically normalizes
+    katakana readings to hiragana for consistent matching. Provides meaning
+    glosses, readings, and example sentences for each word.
+    """
+
     def __init__(self, entries: list[dict[str, Any]]) -> None:
+        """Initialize dictionary with JMDict entries.
+
+        Args:
+            entries: List of JMDict word entries (each a dict with kanji, kana, sense fields)
+        """
         self._index: dict[str, list[dict[str, Any]]] = {}
         for entry in entries:
             for form in self._forms(entry):
@@ -111,6 +123,19 @@ class Dictionary:
 
     @classmethod
     def from_file(cls, path: Path) -> "Dictionary":
+        """Load a dictionary from a JMDict JSON file.
+
+        Args:
+            path: Path to the jmdict-eng.json file or similar JMDict format
+
+        Returns:
+            A new Dictionary instance
+
+        Raises:
+            FileNotFoundError: If the file does not exist
+            ValueError: If the JSON format is invalid or missing 'words' list
+            json.JSONDecodeError: If the JSON is malformed
+        """
         with path.open(encoding="utf-8") as handle:
             data = json.load(handle)
         entries = data.get("words", data) if isinstance(data, dict) else data
@@ -119,6 +144,19 @@ class Dictionary:
         return cls(entries)
 
     def lookup(self, word: str) -> Optional[Card]:
+        """Look up a Japanese word and return a card with meanings and examples.
+
+        Performs exact matching on kanji or kana spellings. Normalizes katakana
+        to hiragana for matching. Prefers common kanji spellings when multiple
+        variants exist.
+
+        Args:
+            word: The Japanese word to look up (kanji or kana)
+
+        Returns:
+            Card with readings, meanings (formatted with part-of-speech),
+            and example sentences; None if word not found
+        """
         word = word.strip()
         entries = self._index.get(word, [])
         if not entries:
@@ -227,6 +265,24 @@ def _related_words(related: list[Any]) -> list[str]:
 
 
 def download_latest(path: Path) -> str:
+    """Download the latest English JMDict JSON from GitHub and save to disk.
+
+    Fetches the latest release of jmdict-simplified from GitHub, verifies the
+    checksum if available, extracts the JSON data, and atomically writes it to
+    the specified path. Uses a temporary file to ensure atomic writes (no
+    partial or corrupted files on disk).
+
+    Args:
+        path: Path where the dictionary JSON will be saved
+
+    Returns:
+        The name of the downloaded asset (e.g., "jmdict-examples-eng.zip")
+
+    Raises:
+        RuntimeError: If the asset cannot be found, checksum fails, or JSON extraction fails
+        urllib.error.URLError: If the network request fails
+        json.JSONDecodeError: If the release response is not valid JSON
+    """
     request = urllib.request.Request(LATEST_RELEASE_API, headers={"User-Agent": "daily-anki"})
     with urllib.request.urlopen(request) as response:
         release = json.load(response)
@@ -263,6 +319,24 @@ def download_latest(path: Path) -> str:
 
 
 def _extract_json(archive: bytes, asset_name: str) -> bytes:
+    """Extract JSON data from a zip or tar.gz archive.
+
+    Handles both .zip and .tar.gz compressed formats, automatically detecting
+    the format from the asset name. Uses context managers to ensure proper
+    resource cleanup.
+
+    Args:
+        archive: Bytes of the compressed archive data
+        asset_name: The name of the asset (used to determine format)
+
+    Returns:
+        The raw JSON bytes extracted from the archive
+
+    Raises:
+        RuntimeError: If no JSON file is found or cannot be extracted from the archive
+        BadZipFile: If the zip archive is corrupt
+        ReadError: If the tar archive is corrupt
+    """
     if asset_name.endswith(".zip"):
         with zipfile.ZipFile(io.BytesIO(archive)) as compressed:
             json_name = next(name for name in compressed.namelist() if name.endswith(".json"))

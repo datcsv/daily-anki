@@ -1,5 +1,6 @@
 import json
 import math
+import os
 from dataclasses import dataclass
 from typing import Any, Callable, Optional
 from urllib.error import URLError
@@ -7,10 +8,11 @@ from urllib.request import Request, urlopen
 
 from .models import Card
 
-DEFAULT_ENDPOINT = "http://127.0.0.1:8765"
-DEFAULT_TIMEOUT = 10.0
-DEFAULT_DECK = "Daily Life"
-DEFAULT_NOTE_TYPE = "Daily Anki"
+# Configuration defaults (can be overridden by environment variables)
+DEFAULT_ENDPOINT = os.getenv("ANKI_CONNECT_ENDPOINT", "http://127.0.0.1:8765")
+DEFAULT_TIMEOUT = float(os.getenv("ANKI_CONNECT_TIMEOUT", "10.0"))
+DEFAULT_DECK = os.getenv("ANKI_DECK", "Daily Life")
+DEFAULT_NOTE_TYPE = os.getenv("ANKI_NOTE_TYPE", "Daily Anki")
 FIELD_NAMES = (
     "Target Japanese Word",
     "Target Word Furigana",
@@ -49,16 +51,38 @@ DEFAULT_CARD_TEMPLATES = (
 
 
 class AnkiConnectError(RuntimeError):
+    """Raised when AnkiConnect communication fails or returns an error."""
+
     pass
 
 
 class AnkiConnectClient:
+    """Client for communicating with AnkiConnect HTTP API.
+
+    Provides methods to query Anki Desktop and manage decks, note types, and cards.
+    Requires Anki Desktop with AnkiConnect add-on to be running.
+
+    Configuration can be customized via environment variables:
+    - ANKI_CONNECT_ENDPOINT: URL where AnkiConnect is running (default: http://127.0.0.1:8765)
+    - ANKI_CONNECT_TIMEOUT: Request timeout in seconds (default: 10.0)
+    """
+
     def __init__(
         self,
         endpoint: str = DEFAULT_ENDPOINT,
         opener: Callable[..., Any] = urlopen,
         timeout: float = DEFAULT_TIMEOUT,
     ) -> None:
+        """Initialize AnkiConnect client.
+
+        Args:
+            endpoint: URL where AnkiConnect HTTP API is running
+            opener: (Testing only) Custom URL opener function
+            timeout: Request timeout in seconds (must be positive finite)
+
+        Raises:
+            ValueError: If timeout is not a positive finite number
+        """
         if not math.isfinite(timeout) or timeout <= 0:
             raise ValueError("AnkiConnect timeout must be a positive finite number")
         self.endpoint = endpoint
