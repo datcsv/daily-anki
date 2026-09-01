@@ -1,8 +1,11 @@
+import logging
 import re
 import subprocess
 from dataclasses import dataclass
 from html.parser import HTMLParser
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 APPLE_SCRIPT = r"""on run argv
     set requestedFolder to item 1 of argv
@@ -63,13 +66,37 @@ SET_NOTE_BODY_SCRIPT = r"""on run argv
     end tell
 end run"""
 
+# Regex pattern to detect Japanese characters (hiragana, katakana, kanji, iteration marks, prolonged vowel)
+# Ranges: \u3040-\u309f (hiragana), \u30a0-\u30ff (katakana), \u3400-\u4dbf (CJK Extension A),
+#         \u4e00-\u9fff (CJK Unified Ideographs), 々 (ideographic iteration), ー (katakana prolonged vowel)
 JAPANESE_RUN = re.compile(r"[\u3040-\u309f\u30a0-\u30ff\u3400-\u4dbf\u4e00-\u9fff々ー]+")
+
+# Regex patterns for detecting list markers (bullet points, checkboxes, etc.)
+# Matches: - * • or [ ] [x] [X] at line start with optional whitespace
 LIST_MARKER = re.compile(r"^\s*(?:[-*•]|\[[ xX]\])\s*")
 LIST_ITEM_MARKER = re.compile(r"^\s*(?:[-*•]|\[[ xX]\])\s+")
+
+# HTML block tags that can be safely removed if they contain only a vocabulary word
+# (prevents accidental deletion of semantic content or styling)
 REMOVABLE_BLOCK_TAGS = {"div", "li", "p", "tr"}
 
 
 def fetch_words(folder: str = "", note_name: str = "") -> list[str]:
+    """Fetch Japanese words from Apple Notes.
+
+    Reads the content of one or more Apple Notes and extracts all detected
+    Japanese words, ignoring HTML markup and English text.
+
+    Args:
+        folder: The Notes folder name (empty string to search all folders)
+        note_name: The exact name of the note (empty string to search all notes)
+
+    Returns:
+        List of Japanese words found in the note(s)
+
+    Raises:
+        subprocess.CalledProcessError: If the osascript command fails
+    """
     result = subprocess.run(
         ["osascript", "-e", APPLE_SCRIPT, folder, note_name],
         check=True,
@@ -80,6 +107,15 @@ def fetch_words(folder: str = "", note_name: str = "") -> list[str]:
 
 
 def clear_note(folder: str, note_name: str) -> None:
+    """Clear the body of an Apple Note, preserving only the title heading.
+
+    Args:
+        folder: The Notes folder name (empty string to search all folders)
+        note_name: The exact name of the note to clear
+
+    Raises:
+        subprocess.CalledProcessError: If the osascript command fails
+    """
     subprocess.run(
         ["osascript", "-e", CLEAR_NOTE_SCRIPT, folder, note_name],
         check=True,
@@ -89,6 +125,20 @@ def clear_note(folder: str, note_name: str) -> None:
 
 
 def remove_words(folder: str, note_name: str, words: list[str]) -> None:
+    """Remove selected words from an Apple Note.
+
+    Only removes complete vocabulary-list entries (list items, marked lines, bare words).
+    Never removes arbitrary word substrings to prevent accidental data loss.
+    Preserves prose, links, and reference material.
+
+    Args:
+        folder: The Notes folder name (empty string to search all folders)
+        note_name: The exact name of the note to modify
+        words: List of Japanese words to remove from the note
+
+    Raises:
+        subprocess.CalledProcessError: If the osascript command fails
+    """
     if not words:
         return
     result = subprocess.run(
@@ -99,6 +149,10 @@ def remove_words(folder: str, note_name: str, words: list[str]) -> None:
     )
     updated_body = remove_words_from_html(result.stdout.removesuffix("\n"), words)
     if updated_body == result.stdout.removesuffix("\n"):
+        logger.debug(
+            f"No vocabulary items to remove from note '{note_name}': "
+            f"words {words} do not match removable list entries"
+        )
         return
     subprocess.run(
         ["osascript", "-e", SET_NOTE_BODY_SCRIPT, folder, note_name, updated_body],
@@ -254,6 +308,19 @@ def _split_html_at_ranges(html: str, ranges: list[tuple[int, int]]) -> list[str]
 
 
 def parse_note_words(html: str) -> list[str]:
+    """Extract Japanese words from HTML content.
+
+    Parses HTML to extract text, ignoring tags and headings, then finds all
+    Japanese word runs (consecutive Japanese characters) and returns them as
+    a list. Automatically strips list markers and separates words from adjacent
+    table cells.
+
+    Args:
+        html: HTML content from an Apple Note
+
+    Returns:
+        List of Japanese words found in order of appearance
+    """
     parser = _NoteTextParser()
     parser.feed(html)
     parser.close()
