@@ -5,7 +5,9 @@ from pathlib import Path
 from .anki import SyncResult
 
 
-def append_sync_event(path: Path, deck: str, note_type: str, result: SyncResult, missing: list[str], dry_run: bool) -> None:
+def append_sync_event(
+    path: Path, deck: str, note_type: str, result: SyncResult, missing: list[str], dry_run: bool
+) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     event = {
         "timestamp": datetime.now(timezone.utc).isoformat(),

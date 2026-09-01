@@ -13,13 +13,14 @@ def export_cards_from_words(
     dictionary_source: DictionarySource | None = None,
 ) -> tuple[int, list[str]]:
     """Export words to a TSV file using the provided dictionary source.
-    
+
     If no dictionary_source is provided, creates a JMDict source from dictionary_path.
     """
     if dictionary_source is None:
         from .adapters import JMDictDictionarySource
+
         dictionary_source = JMDictDictionarySource.from_file(dictionary_path)
-    
+
     cards = []
     missing = []
     for word in words:

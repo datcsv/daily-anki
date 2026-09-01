@@ -11,7 +11,9 @@ from daily_anki.services import export_cards_from_words
 
 def test_main_reports_operational_errors_without_traceback(monkeypatch, capsys):
     monkeypatch.setattr(sys, "argv", ["daily-anki", "download-dictionary"])
-    monkeypatch.setattr(cli, "download_latest", lambda path: (_ for _ in ()).throw(RuntimeError("download failed")))
+    monkeypatch.setattr(
+        cli, "download_latest", lambda path: (_ for _ in ()).throw(RuntimeError("download failed"))
+    )
 
     with pytest.raises(SystemExit) as error:
         cli.main()
@@ -31,7 +33,17 @@ def test_anki_timeout_argument_is_validated():
 def test_export_cards_from_words_builds_tsv(tmp_path):
     dictionary_path = tmp_path / "dictionary.json"
     dictionary_path.write_text(
-        json.dumps({"words": [{"kanji": [{"text": "猫"}], "kana": [{"text": "ねこ"}], "sense": [{"gloss": [{"text": "cat"}]}]}]}),
+        json.dumps(
+            {
+                "words": [
+                    {
+                        "kanji": [{"text": "猫"}],
+                        "kana": [{"text": "ねこ"}],
+                        "sense": [{"gloss": [{"text": "cat"}]}],
+                    }
+                ]
+            }
+        ),
         encoding="utf-8",
     )
     output_path = tmp_path / "exports" / "daily.tsv"
@@ -73,10 +85,18 @@ def test_clear_note_removes_only_created_or_existing_words(monkeypatch, tmp_path
             return SyncResult(created=("猫",), existing=("犬",), failed=("鳥",))
 
     parser = cli.build_parser()
-    args = parser.parse_args([
-        "sync", "--note-name", "Daily Life", "--dictionary", str(tmp_path / "dictionary.json"),
-        "--history", str(tmp_path / "history.jsonl"), "--clear-note",
-    ])
+    args = parser.parse_args(
+        [
+            "sync",
+            "--note-name",
+            "Daily Life",
+            "--dictionary",
+            str(tmp_path / "dictionary.json"),
+            "--history",
+            str(tmp_path / "history.jsonl"),
+            "--clear-note",
+        ]
+    )
     notes_gateway = FakeNotesGateway()
     monkeypatch.setattr(cli.JMDictDictionarySource, "from_file", lambda path: FakeDictionary())
 

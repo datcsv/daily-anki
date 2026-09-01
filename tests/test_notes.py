@@ -46,7 +46,9 @@ def test_remove_words_targets_named_note_with_only_completed_words(monkeypatch):
 
 
 def test_remove_words_does_not_call_apple_notes_without_words(monkeypatch):
-    monkeypatch.setattr(notes.subprocess, "run", lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError()))
+    monkeypatch.setattr(
+        notes.subprocess, "run", lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError())
+    )
 
     notes.remove_words("Japanese", "Daily Life", [])
 
@@ -66,8 +68,11 @@ def test_remove_words_does_not_write_when_only_prose_matches(monkeypatch):
 
 
 def test_clear_script_preserves_note_title_heading():
-    assert 'set noteTitle to name of currentNote' in notes.CLEAR_NOTE_SCRIPT
-    assert 'set body of currentNote to "<div><h1>" & noteTitle & "</h1></div>"' in notes.CLEAR_NOTE_SCRIPT
+    assert "set noteTitle to name of currentNote" in notes.CLEAR_NOTE_SCRIPT
+    assert (
+        'set body of currentNote to "<div><h1>" & noteTitle & "</h1></div>"'
+        in notes.CLEAR_NOTE_SCRIPT
+    )
 
 
 def test_remove_words_from_html_removes_only_complete_vocabulary_items():
