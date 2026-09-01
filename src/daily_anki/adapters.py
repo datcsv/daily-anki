@@ -1,13 +1,19 @@
 from __future__ import annotations
 
-from typing import Optional
-
-from .gateways import NotesGateway, DictionarySource, AnkiGateway, SyncResult
-from .models import Card
-from .notes import fetch_words as fetch_words_impl, clear_note as clear_note_impl, remove_words as remove_words_impl
-from .jmdict import Dictionary as JMDictDictionary
-from .anki import AnkiConnectClient, check_configuration, ensure_configuration, sync_configured_cards
 from pathlib import Path
+
+from .anki import (
+    AnkiConnectClient,
+    check_configuration,
+    ensure_configuration,
+    sync_configured_cards,
+)
+from .gateways import AnkiGateway, DictionarySource, NotesGateway, SyncResult
+from .jmdict import Dictionary as JMDictDictionary
+from .models import Card
+from .notes import clear_note as clear_note_impl
+from .notes import fetch_words as fetch_words_impl
+from .notes import remove_words as remove_words_impl
 
 
 class AppleNotesGateway(NotesGateway):
@@ -33,7 +39,7 @@ class JMDictDictionarySource(DictionarySource):
     def from_file(cls, path: Path | str) -> JMDictDictionarySource:
         return cls(JMDictDictionary.from_file(Path(path)))
 
-    def lookup(self, word: str) -> Optional[Card]:
+    def lookup(self, word: str) -> Card | None:
         return self._dictionary.lookup(word)
 
 

@@ -1,8 +1,8 @@
 import csv
 from pathlib import Path
 
-from .models import Card
 from .anki import fields_for_card
+from .models import Card
 
 
 def write_tsv(cards: list[Card], path: Path) -> None:

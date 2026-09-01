@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Optional
+from dataclasses import dataclass
 
 from .models import Card
 
@@ -29,7 +29,7 @@ class DictionarySource(ABC):
     """Abstract interface for dictionary lookup operations."""
 
     @abstractmethod
-    def lookup(self, word: str) -> Optional[Card]:
+    def lookup(self, word: str) -> Card | None:
         """Look up a word and return a card or None if not found."""
         pass
 
@@ -53,9 +53,6 @@ class AnkiGateway(ABC):
     ) -> SyncResult:
         """Sync cards to Anki and return the result."""
         pass
-
-
-from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
