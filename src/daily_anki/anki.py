@@ -38,12 +38,6 @@ DEFAULT_CARD_TEMPLATES = (
             "<div style='font-family: MS Mincho, Arial; font-size: 30px;'>{{furigana:Japanese Example Sentence}}</div>"
             "<div style='font-family: Arial; font-size: 20px;color:blue;'>{{English Translation of Sentence}}</div>"
             "<hr>"
-            "<p style='font-family: Arial; font-size: 18px;'>"
-            "<span style='font-family: Arial; font-size: 12px;'>Look up <span style='font-family: MS Mincho,Arial; font-size: 12px;'>{{Target Japanese Word}}</span> on...</span><br/>"
-            '* <a href="http://classic.jisho.org/words?jap={{Target Japanese Word}}">Jisho.org</a> *<br/>'
-            '* <a href="http://ejje.weblio.jp/content/{{Target Japanese Word}}">Weblio.jp</a> *<br/>'
-            '* <a href="http://search.ameba.jp/search.html?q={{Target Japanese Word}}">Ameba.jp</a> *<br/>'
-            "</p>"
             "{{Notes}}"
         ),
     },
