@@ -43,6 +43,11 @@ def test_fields_for_card_matches_deck_contract():
     assert fields["English Translation of Sentence"] == "It is a cat."
 
 
+def test_fields_for_card_includes_card_notes():
+    fields = fields_for_card(Card("明白", notes="word usually written using kana alone, art"))
+    assert fields["Notes"] == "word usually written using kana alone, art"
+
+
 class FakeAnki:
     def __init__(self):
         self.added = []

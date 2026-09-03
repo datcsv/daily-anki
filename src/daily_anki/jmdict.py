@@ -110,13 +110,16 @@ class Dictionary:
     glosses, readings, and example sentences for each word.
     """
 
-    def __init__(self, entries: list[dict[str, Any]]) -> None:
+    def __init__(
+        self, entries: list[dict[str, Any]], tags: Optional[dict[str, str]] = None
+    ) -> None:
         """Initialize dictionary with JMDict entries.
 
         Args:
             entries: List of JMDict word entries (each a dict with kanji, kana, sense fields)
         """
         self._index: dict[str, list[dict[str, Any]]] = {}
+        self._tags = {**POS_LABELS, **(tags or {})}
         for entry in entries:
             for form in self._forms(entry):
                 self._index.setdefault(form, []).append(entry)
@@ -141,7 +144,8 @@ class Dictionary:
         entries = data.get("words", data) if isinstance(data, dict) else data
         if not isinstance(entries, list):
             raise ValueError("JMDict JSON must contain a 'words' list")
-        return cls(entries)
+        tags = data.get("tags", {}) if isinstance(data, dict) else {}
+        return cls(entries, tags if isinstance(tags, dict) else {})
 
     def lookup(self, word: str) -> Optional[Card]:
         """Look up a Japanese word and return a card with meanings and examples.
@@ -208,6 +212,7 @@ class Dictionary:
             examples=tuple(examples),
             source_id=str(entry.get("id", "")) or None,
             metadata={"lookup_word": word},
+            notes=", ".join(_entry_notes(entry, self._tags)),
         )
 
     @staticmethod
@@ -262,6 +267,19 @@ def _related_words(related: list[Any]) -> list[str]:
             if word not in words:
                 words.append(word)
     return words
+
+
+def _entry_notes(entry: dict[str, Any], tags: dict[str, str]) -> list[str]:
+    notes: list[str] = []
+    codes: list[str] = []
+    for sense in entry.get("sense", []):
+        for field_name in ("misc", "field", "dialect"):
+            codes.extend(sense.get(field_name, []))
+    for code in codes:
+        label = tags.get(code, code)
+        if label and label not in notes:
+            notes.append(label)
+    return notes
 
 
 def download_latest(path: Path) -> str:
