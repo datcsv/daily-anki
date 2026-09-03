@@ -46,6 +46,25 @@ def test_lookup_converts_katakana_reading_to_hiragana():
     assert card.readings == ("こーひー",)
 
 
+def test_lookup_resolves_and_deduplicates_metadata_tags():
+    card = Dictionary(
+        [
+            {
+                "kanji": [{"text": "明白", "tags": ["ateji", "rK"]}],
+                "kana": [{"text": "あからさま", "tags": ["sk"]}],
+                "sense": [{"misc": ["uk"], "field": ["art"], "dialect": ["uk"]}],
+            }
+        ],
+        {
+            "rK": "rarely used kanji form",
+            "uk": "word usually written using kana alone",
+            "art": "art, aesthetics",
+        },
+    ).lookup("明白")
+    assert card is not None
+    assert card.notes == "word usually written using kana alone, art, aesthetics"
+
+
 def test_lookup_deduplicates_readings_after_hiragana_conversion():
     card = Dictionary(
         [{"kana": [{"text": "むかつく"}, {"text": "ムカつく"}, {"text": "ムカツク"}]}]

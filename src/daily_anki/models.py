@@ -16,3 +16,4 @@ class Card:
     examples: tuple[Example, ...] = ()
     source_id: Optional[str] = None
     metadata: dict[str, str] = field(default_factory=dict)
+    notes: str = ""

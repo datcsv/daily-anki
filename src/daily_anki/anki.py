@@ -225,7 +225,7 @@ def fields_for_card(card: Card) -> dict[str, str]:
         "<br>".join(card.meanings),
         example.japanese if example else "",
         example.english if example else "",
-        "",
+        card.notes,
     )
     return dict(zip(FIELD_NAMES, values))
 
